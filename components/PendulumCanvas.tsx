@@ -219,10 +219,14 @@ interface GLContext {
 }
 
 interface PendulumCanvasProps {
+  lowResScaleFactor: number;
   uniforms: InputUniforms;
 }
 
-export default function PendulumCanvas({ uniforms }: PendulumCanvasProps) {
+export default function PendulumCanvas({
+  lowResScaleFactor,
+  uniforms,
+}: PendulumCanvasProps) {
   const animationFrameRef = useRef<number | null>(null);
   const fullRenderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -243,26 +247,16 @@ export default function PendulumCanvas({ uniforms }: PendulumCanvasProps) {
     null
   );
 
-  const render = useCallback(
-    (glContext: GLContext) => {
-      const { gl, program, vao } = glContext;
+  const render = useCallback((glContext: GLContext) => {
+    const { gl, vao } = glContext;
 
-      gl.clearColor(0.0, 0.0, 0.0, 1.0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindVertexArray(vao);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-      gl.uniform2f(
-        gl.getUniformLocation(program, "u_center"),
-        center[0],
-        center[1]
-      );
-
-      gl.bindVertexArray(vao);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-      animationFrameRef.current = null;
-    },
-    [center]
-  );
+    animationFrameRef.current = null;
+  }, []);
 
   // Handle mouse wheel for zooming
   const handleWheel = useCallback(
@@ -511,7 +505,7 @@ export default function PendulumCanvas({ uniforms }: PendulumCanvasProps) {
       const { gl, program } = glContext;
 
       const animationFrame = requestAnimationFrame(() => {
-        const scaleFactor = 8;
+        const scaleFactor = lowResScaleFactor;
         setUniforms(gl, program, downscaledUniforms(fullUniforms, scaleFactor));
         setCanvasSize(
           canvas,
@@ -539,7 +533,7 @@ export default function PendulumCanvas({ uniforms }: PendulumCanvasProps) {
 
       return [animationFrame, fullResRenderTimeout];
     },
-    [render]
+    [render, lowResScaleFactor]
   );
 
   // Re-render when fullUniforms changes

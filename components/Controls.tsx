@@ -3,10 +3,13 @@
 import { useState, useEffect } from "react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { InputUniforms } from "./PendulumCanvas";
+import styles from "./Controls.module.css";
 
 interface ControlsProps {
   uniforms: InputUniforms;
   setUniforms: (uniforms: InputUniforms) => void;
+  lowResScaleFactor: number;
+  setLowResScaleFactor: (lowResScaleFactor: number) => void;
 }
 
 interface SliderProps {
@@ -41,15 +44,15 @@ function Slider({
 
   const handleInputBlur = () => {
     const numValue = parseFloat(inputValue);
-    if (!isNaN(numValue)) {
-      // Clamp the value to the allowed range
-      const clampedValue = Math.max(min, Math.min(max, numValue));
-      onChange(clampedValue);
-      setInputValue(clampedValue.toFixed(precision));
-    } else {
-      // Reset to current value if invalid
+    if (isNaN(numValue)) {
       setInputValue(value.toFixed(precision));
+      return;
     }
+
+    // Clamp the value to the allowed range
+    const clampedValue = Math.max(min, Math.min(max, numValue));
+    onChange(clampedValue);
+    setInputValue(clampedValue.toFixed(precision));
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -79,13 +82,18 @@ function Slider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+        className={`w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer ${styles.slider}`}
       />
     </div>
   );
 }
 
-export default function Controls({ uniforms, setUniforms }: ControlsProps) {
+export default function Controls({
+  uniforms,
+  setUniforms,
+  lowResScaleFactor,
+  setLowResScaleFactor,
+}: ControlsProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
@@ -105,139 +113,106 @@ export default function Controls({ uniforms, setUniforms }: ControlsProps) {
 
       {/* Collapsible content */}
       <div
-        className={`transition-all duration-300 ease-in-out ${
+        className={`flex flex-col duration-300 ease-in-out w-56 ${
           isCollapsed ? "max-h-0" : "max-h-[800px]"
         } overflow-hidden`}
       >
-        <div className="px-4 pb-4">
-          <div>
-            <Slider
-              label="Step Count"
-              value={uniforms.stepCount}
-              min={50}
-              max={1000}
-              step={1}
-              precision={0}
-              onChange={(value) =>
-                setUniforms({ ...uniforms, stepCount: value })
-              }
-            />
-          </div>
+        <div className="px-6 py-2">
+          <Slider
+            label="Low Res Scale"
+            value={lowResScaleFactor}
+            min={1}
+            max={16}
+            step={1}
+            precision={0}
+            onChange={(value) => setLowResScaleFactor(value)}
+          />
 
-          <div className="mb-6">
-            <Slider
-              label="Gravity"
-              value={uniforms.gravity}
-              min={0}
-              max={20}
-              step={0.1}
-              precision={1}
-              onChange={(value) => setUniforms({ ...uniforms, gravity: value })}
-            />
-          </div>
+          <Slider
+            label="Step Count"
+            value={uniforms.stepCount}
+            min={50}
+            max={1000}
+            step={1}
+            precision={0}
+            onChange={(value) => setUniforms({ ...uniforms, stepCount: value })}
+          />
 
-          <div className="mb-6">
-            <h3 className="text-md font-medium text-gray-700 mb-3 border-b border-gray-200 pb-1">
-              Pendulum A
-            </h3>
-            <Slider
-              label="Length"
-              value={uniforms.pendulumLengths[0]}
-              min={0.1}
-              max={10}
-              step={0.1}
-              precision={1}
-              onChange={(value) =>
-                setUniforms({
-                  ...uniforms,
-                  pendulumLengths: [value, uniforms.pendulumLengths[1]],
-                })
-              }
-            />
-            <Slider
-              label="Mass"
-              value={uniforms.pendulumMasses[0]}
-              min={0.1}
-              max={10}
-              step={0.1}
-              precision={1}
-              onChange={(value) =>
-                setUniforms({
-                  ...uniforms,
-                  pendulumMasses: [value, uniforms.pendulumMasses[1]],
-                })
-              }
-            />
-          </div>
+          <Slider
+            label="Gravity"
+            value={uniforms.gravity}
+            min={0}
+            max={20}
+            step={0.1}
+            precision={1}
+            onChange={(value) => setUniforms({ ...uniforms, gravity: value })}
+          />
 
-          <div className="mb-6">
-            <h3 className="text-md font-medium text-gray-700 mb-3 border-b border-gray-200 pb-1">
-              Pendulum B
-            </h3>
-            <Slider
-              label="Length"
-              value={uniforms.pendulumLengths[1]}
-              min={0.1}
-              max={10}
-              step={0.1}
-              precision={1}
-              onChange={(value) =>
-                setUniforms({
-                  ...uniforms,
-                  pendulumLengths: [uniforms.pendulumLengths[0], value],
-                })
-              }
-            />
-            <Slider
-              label="Mass"
-              value={uniforms.pendulumMasses[1]}
-              min={0.1}
-              max={10}
-              step={0.1}
-              precision={1}
-              onChange={(value) =>
-                setUniforms({
-                  ...uniforms,
-                  pendulumMasses: [uniforms.pendulumMasses[0], value],
-                })
-              }
-            />
-          </div>
+          <h3 className="text-md font-medium text-gray-700 mb-3 border-b border-gray-200 pb-1">
+            Pendulum A
+          </h3>
+          <Slider
+            label="Length"
+            value={uniforms.pendulumLengths[0]}
+            min={0.1}
+            max={10}
+            step={0.1}
+            precision={1}
+            onChange={(value) =>
+              setUniforms({
+                ...uniforms,
+                pendulumLengths: [value, uniforms.pendulumLengths[1]],
+              })
+            }
+          />
+          <Slider
+            label="Mass"
+            value={uniforms.pendulumMasses[0]}
+            min={0.1}
+            max={10}
+            step={0.1}
+            precision={1}
+            onChange={(value) =>
+              setUniforms({
+                ...uniforms,
+                pendulumMasses: [value, uniforms.pendulumMasses[1]],
+              })
+            }
+          />
+
+          <h3 className="text-md font-medium text-gray-700 mb-3 border-b border-gray-200 pb-1">
+            Pendulum B
+          </h3>
+          <Slider
+            label="Length"
+            value={uniforms.pendulumLengths[1]}
+            min={0.1}
+            max={10}
+            step={0.1}
+            precision={1}
+            onChange={(value) =>
+              setUniforms({
+                ...uniforms,
+                pendulumLengths: [uniforms.pendulumLengths[0], value],
+              })
+            }
+          />
+          <Slider
+            label="Mass"
+            value={uniforms.pendulumMasses[1]}
+            min={0.1}
+            max={10}
+            step={0.1}
+            precision={1}
+            onChange={(value) =>
+              setUniforms({
+                ...uniforms,
+                pendulumMasses: [uniforms.pendulumMasses[0], value],
+              })
+            }
+          />
         </div>
       </div>
-
-      <style jsx>{`
-        .slider::-webkit-slider-thumb {
-          appearance: none;
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: #3b82f6;
-          cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        .slider::-webkit-slider-thumb:hover {
-          background: #2563eb;
-          transform: scale(1.1);
-        }
-
-        .slider::-moz-range-thumb {
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: #3b82f6;
-          cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        .slider::-moz-range-thumb:hover {
-          background: #2563eb;
-          transform: scale(1.1);
-        }
-      `}</style>
     </div>
   );
 }
