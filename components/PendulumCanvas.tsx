@@ -492,7 +492,7 @@ export default function PendulumCanvas({ uniforms }: PendulumCanvasProps) {
         if (fragmentShader) gl.deleteShader(fragmentShader);
         if (positionBuffer) gl.deleteBuffer(positionBuffer);
         if (vao) gl.deleteVertexArray(vao);
-      } catch (e) {
+      } catch (_e) {
         // Ignore cleanup errors
       }
 
