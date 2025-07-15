@@ -36,7 +36,7 @@ function Slider({
   // Update input value when slider value changes
   useEffect(() => {
     setInputValue(value.toFixed(precision));
-  }, [value]);
+  }, [value, precision]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);

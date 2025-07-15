@@ -5,21 +5,21 @@ function deriviative(
   pendulums: PendulumPair,
   gravity: number
 ): [number, number, number, number] {
-  let cos12 = Math.cos(pendulums[0].angle - pendulums[1].angle);
-  let sin12 = Math.sin(pendulums[0].angle - pendulums[1].angle);
-  let da1 =
+  const cos12 = Math.cos(pendulums[0].angle - pendulums[1].angle);
+  const sin12 = Math.sin(pendulums[0].angle - pendulums[1].angle);
+  const da1 =
     ((6 / (pendulums[0].mass * pendulums[0].length * pendulums[0].length)) *
       (2 * pendulums[0].momentum - 3 * cos12 * pendulums[1].momentum)) /
     (16 - 9 * cos12 * cos12);
-  let da2 =
+  const da2 =
     ((6 / (pendulums[1].mass * pendulums[1].length * pendulums[1].length)) *
       (8 * pendulums[1].momentum - 3 * cos12 * pendulums[0].momentum)) /
     (16 - 9 * cos12 * cos12);
-  let dp1 =
+  const dp1 =
     ((pendulums[0].mass * pendulums[0].length * pendulums[0].length) / -2) *
     (+da1 * da2 * sin12 +
       ((3 * gravity) / pendulums[0].length) * Math.sin(pendulums[0].angle));
-  let dp2 =
+  const dp2 =
     ((pendulums[1].mass * pendulums[1].length * pendulums[1].length) / -2) *
     (-da1 * da2 * sin12 +
       ((3 * gravity) / pendulums[1].length) * Math.sin(pendulums[1].angle));
@@ -32,40 +32,40 @@ function rk4(
   gravity: number,
   dt: number
 ): PendulumPair {
-  let [k1da1, k1da2, k1dp1, k1dp2] = deriviative(pendulums, gravity);
+  const [k1da1, k1da2, k1dp1, k1dp2] = deriviative(pendulums, gravity);
 
-  let k2a1 = pendulums[0].angle + (k1da1 * dt) / 2;
-  let k2a2 = pendulums[1].angle + (k1da2 * dt) / 2;
-  let k2p1 = pendulums[0].momentum + (k1dp1 * dt) / 2;
-  let k2p2 = pendulums[1].momentum + (k1dp2 * dt) / 2;
+  const k2a1 = pendulums[0].angle + (k1da1 * dt) / 2;
+  const k2a2 = pendulums[1].angle + (k1da2 * dt) / 2;
+  const k2p1 = pendulums[0].momentum + (k1dp1 * dt) / 2;
+  const k2p2 = pendulums[1].momentum + (k1dp2 * dt) / 2;
 
-  let k2pendulums: PendulumPair = [
+  const k2pendulums: PendulumPair = [
     { ...pendulums[0], angle: k2a1, momentum: k2p1 },
     { ...pendulums[1], angle: k2a2, momentum: k2p2 },
   ];
-  let [k2da1, k2da2, k2dp1, k2dp2] = deriviative(k2pendulums, gravity);
+  const [k2da1, k2da2, k2dp1, k2dp2] = deriviative(k2pendulums, gravity);
 
-  let k3a1 = pendulums[0].angle + (k2da1 * dt) / 2;
-  let k3a2 = pendulums[1].angle + (k2da2 * dt) / 2;
-  let k3p1 = pendulums[0].momentum + (k2dp1 * dt) / 2;
-  let k3p2 = pendulums[1].momentum + (k2dp2 * dt) / 2;
+  const k3a1 = pendulums[0].angle + (k2da1 * dt) / 2;
+  const k3a2 = pendulums[1].angle + (k2da2 * dt) / 2;
+  const k3p1 = pendulums[0].momentum + (k2dp1 * dt) / 2;
+  const k3p2 = pendulums[1].momentum + (k2dp2 * dt) / 2;
 
-  let k3pendulums: PendulumPair = [
+  const k3pendulums: PendulumPair = [
     { ...pendulums[0], angle: k3a1, momentum: k3p1 },
     { ...pendulums[1], angle: k3a2, momentum: k3p2 },
   ];
-  let [k3da1, k3da2, k3dp1, k3dp2] = deriviative(k3pendulums, gravity);
+  const [k3da1, k3da2, k3dp1, k3dp2] = deriviative(k3pendulums, gravity);
 
-  let k4a1 = pendulums[0].angle + k3da1 * dt;
-  let k4a2 = pendulums[1].angle + k3da2 * dt;
-  let k4p1 = pendulums[0].momentum + k3dp1 * dt;
-  let k4p2 = pendulums[1].momentum + k3dp2 * dt;
+  const k4a1 = pendulums[0].angle + k3da1 * dt;
+  const k4a2 = pendulums[1].angle + k3da2 * dt;
+  const k4p1 = pendulums[0].momentum + k3dp1 * dt;
+  const k4p2 = pendulums[1].momentum + k3dp2 * dt;
 
-  let k4pendulums: PendulumPair = [
+  const k4pendulums: PendulumPair = [
     { ...pendulums[0], angle: k4a1, momentum: k4p1 },
     { ...pendulums[1], angle: k4a2, momentum: k4p2 },
   ];
-  let [k4da1, k4da2, k4dp1, k4dp2] = deriviative(k4pendulums, gravity);
+  const [k4da1, k4da2, k4dp1, k4dp2] = deriviative(k4pendulums, gravity);
 
   return [
     {
@@ -229,6 +229,7 @@ export default function DoublePendulum({
 
       lastTimestampRef.current = null;
     };
+    /* eslint-disable react-hooks/exhaustive-deps */
   }, [
     gravity,
     startingAngles[0],
@@ -239,6 +240,7 @@ export default function DoublePendulum({
     massesProp[1],
     simulateTimeStep,
   ]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   return (
     <svg

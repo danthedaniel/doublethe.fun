@@ -230,8 +230,8 @@ export default function PendulumCanvas({
   const animationFrameRef = useRef<number | null>(null);
   const fullRenderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const glContext = useRef<GLContext | null>(null);
 
-  const [glContext, setGLContext] = useState<GLContext | null>(null);
   const [fullUniforms, setFullUniforms] = useState<ShaderUniforms | null>(null);
   // prettier-ignore
   const [size, setSize] = useState<[number, number]>([Math.PI, Math.PI]);
@@ -247,8 +247,10 @@ export default function PendulumCanvas({
     null
   );
 
-  const render = useCallback((glContext: GLContext) => {
-    const { gl, vao } = glContext;
+  const render = useCallback(() => {
+    if (!glContext.current) return;
+
+    const { gl, vao } = glContext.current;
 
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -323,6 +325,7 @@ export default function PendulumCanvas({
       ];
       setClickedAngles(angles);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [size[0], size[1], center[0], center[1]]
   );
 
@@ -423,12 +426,12 @@ export default function PendulumCanvas({
         canvasRef.current.clientHeight,
       ],
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(uniforms), size, center, canvasRef.current]);
 
   // Update fullUniforms when canvas size changes
   useEffect(() => {
     if (!canvasRef.current) return;
-    if (!fullUniforms) return;
 
     const resizeObserver = new ResizeObserver((entries) => {
       if (!canvasRef.current) return;
@@ -437,21 +440,22 @@ export default function PendulumCanvas({
       if (!entry) return;
 
       const { width, height } = entry.contentRect;
-      setFullUniforms((prev) =>
-        prev
-          ? {
-              ...prev,
-              resolution: [width, height],
-            }
-          : null
-      );
+      setFullUniforms((prev) => {
+        if (!prev) return null;
+
+        return {
+          ...prev,
+          resolution: [width, height],
+        };
+      });
     });
 
     resizeObserver.observe(document.body);
 
     return () => resizeObserver.disconnect();
-  }, [canvasRef.current]);
+  }, []);
 
+  // Setup WebGL context
   useEffect(() => {
     if (!fullUniforms) return;
 
@@ -467,17 +471,16 @@ export default function PendulumCanvas({
       window.devicePixelRatio
     );
 
-    const glContext = initGL(canvas, fullUniforms);
-    if (!glContext) return;
+    glContext.current = initGL(canvas, fullUniforms);
+    if (!glContext.current) return;
 
-    setGLContext(glContext);
-    animationFrameRef.current = requestAnimationFrame(() => render(glContext));
+    animationFrameRef.current = requestAnimationFrame(() => render());
 
     return () => {
-      if (!glContext) return;
+      if (!glContext.current) return;
 
       const { gl, program, vao, vertexShader, fragmentShader, positionBuffer } =
-        glContext;
+        glContext.current;
 
       // Clean up WebGL resources
       try {
@@ -486,48 +489,46 @@ export default function PendulumCanvas({
         if (fragmentShader) gl.deleteShader(fragmentShader);
         if (positionBuffer) gl.deleteBuffer(positionBuffer);
         if (vao) gl.deleteVertexArray(vao);
-      } catch (_e) {
+      } catch (e) {
         // Ignore cleanup errors
+        console.error(e);
       }
 
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [fullUniforms === null]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [render, fullUniforms === null]);
 
   const scheduleRenders = useCallback(
-    (
-      canvas: HTMLCanvasElement,
-      glContext: GLContext,
-      fullUniforms: ShaderUniforms
-    ): [number, NodeJS.Timeout] => {
-      const { gl, program } = glContext;
+    (fullUniforms: ShaderUniforms): [number, NodeJS.Timeout] => {
+      const { gl, program } = glContext.current!;
 
       const animationFrame = requestAnimationFrame(() => {
         const scaleFactor = lowResScaleFactor;
         setUniforms(gl, program, downscaledUniforms(fullUniforms, scaleFactor));
         setCanvasSize(
-          canvas,
+          canvasRef.current!,
           fullUniforms.resolution[0],
           fullUniforms.resolution[1],
           window.devicePixelRatio / scaleFactor
         );
 
-        render(glContext);
+        render();
       });
 
       const fullResRenderTimeout = setTimeout(() => {
         animationFrameRef.current = requestAnimationFrame(() => {
           setUniforms(gl, program, fullUniforms);
           setCanvasSize(
-            canvas,
+            canvasRef.current!,
             fullUniforms.resolution[0],
             fullUniforms.resolution[1],
             window.devicePixelRatio
           );
 
-          render(glContext);
+          render();
         });
       }, 150);
 
@@ -543,8 +544,6 @@ export default function PendulumCanvas({
     if (!canvasRef.current) return;
 
     const [animationFrame, fullResRenderTimeout] = scheduleRenders(
-      canvasRef.current,
-      glContext,
       fullUniforms
     );
     animationFrameRef.current = animationFrame;
@@ -561,12 +560,8 @@ export default function PendulumCanvas({
         fullRenderTimeoutRef.current = null;
       }
     };
-  }, [
-    canvasRef.current,
-    glContext?.gl,
-    glContext?.program,
-    JSON.stringify(fullUniforms),
-  ]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(fullUniforms), scheduleRenders]);
 
   return (
     <>
