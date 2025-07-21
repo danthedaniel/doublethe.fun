@@ -268,50 +268,50 @@ export default function PendulumCanvas({
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      // Get mouse position relative to canvas
+      // Get mouse position (normalised 0-1) relative to the canvas.
       const rect = canvas.getBoundingClientRect();
       const mouseX = (e.clientX - rect.left) / rect.width;
       const mouseY = (e.clientY - rect.top) / rect.height;
 
-      // Convert mouse position to world coordinates
-      // Zoom factor – scroll up to zoom in, scroll down to zoom out
+      // Zoom factor – scroll up to zoom in, scroll down to zoom out.
       const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
-      const newSize: [number, number] = [
-        size[0] * zoomFactor,
-        size[1] * zoomFactor,
-      ];
 
-      /*
-       * Re-compute the centre so that the view moves **towards** the cursor
-       * as we zoom.  A `focusFactor` of 1 keeps the world point under the
-       * cursor fixed.  Values >1 move the centre even closer to the mouse,
-       * creating a stronger “zoom-focus” effect, while 0 would keep the
-       * centre completely still.
-       */
-      const focusFactor = 1.9; // Tweak this to adjust how strongly the view recentres
+      // Perform **functional** state updates so each wheel event composes
+      // correctly even when many events fire in rapid succession.
+      setSize((prevSize) => {
+        const newSize: [number, number] = [
+          prevSize[0] * zoomFactor,
+          prevSize[1] * zoomFactor,
+        ];
 
-      const newCenterX =
-        center[0] + focusFactor * mouseX * (newSize[0] - size[0]);
-      const newCenterY =
-        center[1] + focusFactor * (1 - mouseY) * (newSize[1] - size[1]);
+        setCenter((prevCenter) => {
+          const focusFactor = 1.6; // How strongly we zoom-focus towards the cursor
 
-      setSize(newSize);
-      setCenter([newCenterX, newCenterY]);
+          const newCenterX =
+            prevCenter[0] + focusFactor * mouseX * (newSize[0] - prevSize[0]);
+          const newCenterY =
+            prevCenter[1] +
+            focusFactor * (1 - mouseY) * (newSize[1] - prevSize[1]);
 
-      if (clickedPosition) {
-        // Update clickedPosition to maintain the same world position
-        // Convert current clicked position to world coordinates (matching the startingAngles calculation)
-        const currentWorldX = clickedPosition[0] * size[0] - center[0];
-        const currentWorldY = (1 - clickedPosition[1]) * size[1] - center[1];
+          // Keep the DoublePendulum anchor fixed in world-space.
+          if (clickedPosition) {
+            const currentWorldX = clickedPosition[0] * prevSize[0] - prevCenter[0];
+            const currentWorldY =
+              (1 - clickedPosition[1]) * prevSize[1] - prevCenter[1];
 
-        // Convert back to normalized coordinates with new size and center
-        const newClickedX = (currentWorldX + newCenterX) / newSize[0];
-        const newClickedY = 1 - (currentWorldY + newCenterY) / newSize[1];
+            const newClickedX = (currentWorldX + newCenterX) / newSize[0];
+            const newClickedY = 1 - (currentWorldY + newCenterY) / newSize[1];
 
-        setClickedPosition([newClickedX, newClickedY]);
-      }
+            setClickedPosition([newClickedX, newClickedY]);
+          }
+
+          return [newCenterX, newCenterY];
+        });
+
+        return newSize;
+      });
     },
-    [size, center, clickedPosition]
+    [clickedPosition]
   );
 
   const handleClick = useCallback(
