@@ -274,35 +274,42 @@ export default function PendulumCanvas({
       const mouseY = (e.clientY - rect.top) / rect.height;
 
       // Convert mouse position to world coordinates
-      const worldMouseX = center[0] + (mouseX - 0.5) * size[0];
-      const worldMouseY = center[1] + (0.5 - mouseY) * size[1];
-
-      // Zoom factor
+      // Zoom factor – scroll up to zoom in, scroll down to zoom out
       const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
       const newSize: [number, number] = [
         size[0] * zoomFactor,
         size[1] * zoomFactor,
       ];
 
-      // Adjust center to keep mouse position fixed
-      const newCenterX = worldMouseX - (mouseX - 0.5) * newSize[0];
-      const newCenterY = worldMouseY - (0.5 - mouseY) * newSize[1];
+      /*
+       * Re-compute the centre so that the view moves **towards** the cursor
+       * as we zoom.  A `focusFactor` of 1 keeps the world point under the
+       * cursor fixed.  Values >1 move the centre even closer to the mouse,
+       * creating a stronger “zoom-focus” effect, while 0 would keep the
+       * centre completely still.
+       */
+      const focusFactor = 1.9; // Tweak this to adjust how strongly the view recentres
+
+      const newCenterX =
+        center[0] + focusFactor * mouseX * (newSize[0] - size[0]);
+      const newCenterY =
+        center[1] + focusFactor * (1 - mouseY) * (newSize[1] - size[1]);
 
       setSize(newSize);
       setCenter([newCenterX, newCenterY]);
 
-      if (!clickedPosition) return;
+      if (clickedPosition) {
+        // Update clickedPosition to maintain the same world position
+        // Convert current clicked position to world coordinates (matching the startingAngles calculation)
+        const currentWorldX = clickedPosition[0] * size[0] - center[0];
+        const currentWorldY = (1 - clickedPosition[1]) * size[1] - center[1];
 
-      // Update clickedPosition to maintain the same world position
-      // Convert current clicked position to world coordinates (matching the startingAngles calculation)
-      const currentWorldX = clickedPosition[0] * size[0] - center[0];
-      const currentWorldY = (1 - clickedPosition[1]) * size[1] - center[1];
+        // Convert back to normalized coordinates with new size and center
+        const newClickedX = (currentWorldX + newCenterX) / newSize[0];
+        const newClickedY = 1 - (currentWorldY + newCenterY) / newSize[1];
 
-      // Convert back to normalized coordinates with new size and center
-      const newClickedX = (currentWorldX + newCenterX) / newSize[0];
-      const newClickedY = 1 - (currentWorldY + newCenterY) / newSize[1];
-
-      setClickedPosition([newClickedX, newClickedY]);
+        setClickedPosition([newClickedX, newClickedY]);
+      }
     },
     [size, center, clickedPosition]
   );
@@ -368,19 +375,19 @@ export default function PendulumCanvas({
       ]);
       setLastMousePos([e.clientX, e.clientY]);
 
-      if (!clickedPosition) return;
+      if (clickedPosition) {
+        // Update clickedPosition to maintain the same world position
+        // Convert current clicked position to world coordinates (matching the startingAngles calculation)
+        const currentWorldX = clickedPosition[0] * size[0] - center[0];
+        const currentWorldY = (1 - clickedPosition[1]) * size[1] - center[1];
 
-      // Update clickedPosition to maintain the same world position
-      // Convert current clicked position to world coordinates (matching the startingAngles calculation)
-      const currentWorldX = clickedPosition[0] * size[0] - center[0];
-      const currentWorldY = (1 - clickedPosition[1]) * size[1] - center[1];
+        // Convert back to normalized coordinates with new center
+        const newClickedX = (currentWorldX + center[0] + worldDeltaX) / size[0];
+        const newClickedY =
+          1 - (currentWorldY + center[1] + worldDeltaY) / size[1];
 
-      // Convert back to normalized coordinates with new center
-      const newClickedX = (currentWorldX + center[0] + worldDeltaX) / size[0];
-      const newClickedY =
-        1 - (currentWorldY + center[1] + worldDeltaY) / size[1];
-
-      setClickedPosition([newClickedX, newClickedY]);
+        setClickedPosition([newClickedX, newClickedY]);
+      }
     },
     [isDragging, lastMousePos, size, center, clickedPosition]
   );
