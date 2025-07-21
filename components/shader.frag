@@ -10,11 +10,6 @@ uniform vec2 u_pendulum_lengths;
 uniform vec2 u_pendulum_masses;
 uniform float u_step_count;
 
-// From vertex shader
-in vec2 v_texCoord;
-in vec3 v_normal;
-in vec3 v_position;
-
 // Output color
 out vec4 fragColor;
 

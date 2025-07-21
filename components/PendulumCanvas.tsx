@@ -93,7 +93,6 @@ function initGL(
 
   // Get attribute locations
   const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-  const texCoordAttributeLocation = gl.getAttribLocation(program, "a_texCoord");
 
   // Create VAO
   const vao = gl.createVertexArray();
@@ -109,17 +108,6 @@ function initGL(
     false,
     4 * 4,
     0
-  );
-
-  // Set up texture coordinate attribute
-  gl.enableVertexAttribArray(texCoordAttributeLocation);
-  gl.vertexAttribPointer(
-    texCoordAttributeLocation,
-    2,
-    gl.FLOAT,
-    false,
-    4 * 4,
-    2 * 4
   );
 
   gl.useProgram(program);
