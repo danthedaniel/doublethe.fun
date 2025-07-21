@@ -285,13 +285,8 @@ export default function PendulumCanvas({
         ];
 
         setCenter((prevCenter) => {
-          const focusFactor = 1.6; // How strongly we zoom-focus towards the cursor
-
-          const newCenterX =
-            prevCenter[0] + focusFactor * mouseX * (newSize[0] - prevSize[0]);
-          const newCenterY =
-            prevCenter[1] +
-            focusFactor * (1 - mouseY) * (newSize[1] - prevSize[1]);
+          const newCenterX = prevCenter[0] + mouseX * (newSize[0] - prevSize[0]);
+          const newCenterY = prevCenter[1] + (1 - mouseY) * (newSize[1] - prevSize[1]);
 
           // Keep the DoublePendulum anchor fixed in world-space.
           if (clickedPosition) {
