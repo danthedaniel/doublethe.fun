@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWindowSize } from "~/hooks/useWindowSize";
-import { timeStep, createPendulums, PendulumPair, PendulumSimulator } from "./pendulumSimulation";
+import { createPendulums, PendulumPair, PendulumSimulator } from "./pendulumSimulation";
+
+const timeStep = 0.001;
 
 interface DoublePendulumProps {
   position: [number, number];
@@ -33,18 +35,15 @@ export default function DoublePendulum({
   const animationFuncRef = useRef<((timestamp: number) => void) | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
-  const simulatorRef = useRef<PendulumSimulator>(
-    new PendulumSimulator(
-      createPendulums(startingAngles, lengthsProp, massesProp),
-      gravity
-    )
-  );
-  const [pendulums, setPendulums] = useState<PendulumPair>(
-    [...simulatorRef.current.pendulums]
-  );
+  const simulatorRef = useRef<PendulumSimulator | null>(null);
+  const [pendulums, setPendulums] = useState<PendulumPair | null>(null);
 
   const animate = useCallback(
     (timestamp: number) => {
+      if (!simulatorRef.current) {
+        throw new Error("Simulator not initialized");
+      }
+
       if (lastTimestampRef.current === null) {
         lastTimestampRef.current = timestamp;
         animationFrameRef.current = requestAnimationFrame((timestamp) =>
@@ -66,7 +65,7 @@ export default function DoublePendulum({
       );
 
       // Trigger a re-render
-      setPendulums([...simulatorRef.current.pendulums]);
+      setPendulums(simulatorRef.current.getState());
     },
     []
   );
@@ -78,6 +77,7 @@ export default function DoublePendulum({
   // Start animation on property changes
   useEffect(() => {
     simulatorRef.current = new PendulumSimulator(
+      timeStep,
       createPendulums(startingAngles, lengthsProp, massesProp),
       gravity
     );
@@ -104,6 +104,10 @@ export default function DoublePendulum({
     massesProp[1],
   ]);
   /* eslint-enable react-hooks/exhaustive-deps */
+
+  if (!pendulums) {
+    return null;
+  }
 
   const firstNode: Coordinates = {
     x: position[0] * width,

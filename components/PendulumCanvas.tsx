@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import fragmentShaderSource from "./shader.frag";
 import vertexShaderSource from "./shader.vert";
 import DoublePendulum from "./DoublePendulum";
+import PendulumAudio from "./PendulumAudio";
 
 function createShader(
   gl: WebGL2RenderingContext,
@@ -563,13 +564,21 @@ export default function PendulumCanvas({
         }}
       />
       {clickedPosition && clickedAngles && (
-        <DoublePendulum
-          startingAngles={clickedAngles}
-          lengths={uniforms.pendulumLengths}
-          masses={uniforms.pendulumMasses}
-          gravity={uniforms.gravity}
-          position={clickedPosition}
-        />
+        <>
+          <DoublePendulum
+            startingAngles={clickedAngles}
+            lengths={uniforms.pendulumLengths}
+            masses={uniforms.pendulumMasses}
+            gravity={uniforms.gravity}
+            position={clickedPosition}
+          />
+          <PendulumAudio
+            startingAngles={clickedAngles}
+            lengths={uniforms.pendulumLengths}
+            masses={uniforms.pendulumMasses}
+            gravity={uniforms.gravity}
+          />
+        </>
       )}
     </>
   );
