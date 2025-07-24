@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Controls from "~/components/Controls";
 import PendulumCanvas, { InputUniforms } from "~/components/PendulumCanvas";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { parseInputUniforms } from "~/utils/paramParser";
 
 function getLowResScaleFactor() {
@@ -26,6 +26,7 @@ const defaultUniforms: InputUniforms = {
 
 function Visualizer() {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [lowResScaleFactor, setLowResScaleFactorInner] = useState(getLowResScaleFactor());
   const [uniforms, setUniforms] = useState<InputUniforms>(parseInputUniforms(searchParams) ?? defaultUniforms);
@@ -38,6 +39,11 @@ function Visualizer() {
   useEffect(() => {
     console.log("Source: https://github.com/danthedaniel/doublethe.fun");
   }, []);
+
+  // Clear URL parameters after load
+  useEffect(() => {
+    router.replace("/", { scroll: false });
+  }, [router]);
 
   return (
     <div className="flex flex-col items-center justify-center h-screen w-screen pt-15 md:pt-0">
