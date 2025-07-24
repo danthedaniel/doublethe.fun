@@ -188,6 +188,15 @@ function setCanvasSize(
   canvas.style.height = `${height}px`;
 }
 
+function setViewport(
+  gl: WebGL2RenderingContext,
+  width: number,
+  height: number,
+  pixelRatio: number
+) {
+  gl.viewport(0, 0, width * pixelRatio, height * pixelRatio);
+}
+
 interface ShaderUniforms {
   resolution: [number, number];
   pixelRatio: number;
@@ -462,6 +471,13 @@ export default function PendulumCanvas({
           window.devicePixelRatio / scaleFactor
         );
 
+        setViewport(
+          gl,
+          fullUniforms.resolution[0],
+          fullUniforms.resolution[1],
+          window.devicePixelRatio / scaleFactor
+        );
+
         render();
       });
 
@@ -470,6 +486,13 @@ export default function PendulumCanvas({
           setUniforms(gl, program, fullUniforms);
           setCanvasSize(
             canvasRef.current!,
+            fullUniforms.resolution[0],
+            fullUniforms.resolution[1],
+            window.devicePixelRatio
+          );
+
+          setViewport(
+            gl,
             fullUniforms.resolution[0],
             fullUniforms.resolution[1],
             window.devicePixelRatio
