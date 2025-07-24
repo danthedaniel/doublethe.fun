@@ -402,13 +402,13 @@ export default function PendulumCanvas({
     canvas.addEventListener("wheel", handleWheel, { passive: false });
     canvas.addEventListener("mousedown", handleMouseDown);
     document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
+    canvas.addEventListener("mouseup", handleMouseUp);
 
     return () => {
       canvas.removeEventListener("wheel", handleWheel);
       canvas.removeEventListener("mousedown", handleMouseDown);
       document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
+      canvas.removeEventListener("mouseup", handleMouseUp);
     };
   }, [handleWheel, handleMouseDown, handleMouseMove, handleMouseUp]);
 
