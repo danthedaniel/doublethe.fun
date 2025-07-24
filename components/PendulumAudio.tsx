@@ -191,7 +191,7 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
   /* eslint-enable react-hooks/exhaustive-deps */
 
   return (
-    <div className="absolute bottom-18 md:top-18 right-4">
+    <div className="absolute bottom-32 md:top-32 right-4">
       <MuteButton isMuted={isMuted} onMute={() => setIsMuted(!isMuted)} />
     </div>
   );

@@ -9,6 +9,7 @@ import { useWindowSize } from "~/hooks/useWindowSize";
 import { useSearchParams } from "next/navigation";
 import { parseCanvasParams } from "~/utils/paramParser";
 import ShareButton from "./ShareButton";
+import InfoButton from "./InfoButton";
 
 function createShader(
   gl: WebGL2RenderingContext,
@@ -771,10 +772,17 @@ export default function PendulumCanvas({
     navigator.clipboard.writeText(url);
   }, [uniforms, size, center, clickedAngles]);
 
+  const handleInfo = useCallback(() => {
+    window.open("https://www.youtube.com/watch?v=dtjb2OhEQcU", "_blank");
+  }, []);
+
   return (
     <>
       <div className="absolute bottom-4 md:top-4 right-4">
         <ShareButton onShare={handleShare} />
+      </div>
+      <div className="absolute bottom-18 md:top-18 right-4">
+        <InfoButton onInfo={handleInfo} />
       </div>
       <canvas
         ref={canvasRef}
