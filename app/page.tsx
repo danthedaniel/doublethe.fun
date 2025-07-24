@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Controls from "~/components/Controls";
 import PendulumCanvas, { InputUniforms } from "~/components/PendulumCanvas";
 import { useSearchParams } from "next/navigation";
@@ -13,7 +13,7 @@ const defaultUniforms: InputUniforms = {
   stepCount: 600,
 };
 
-export default function Home() {
+function Visualizer() {
   const searchParams = useSearchParams();
 
   const [lowResScaleFactor, setLowResScaleFactor] = useState(8);
@@ -32,5 +32,13 @@ export default function Home() {
         setLowResScaleFactor={setLowResScaleFactor}
       />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <Visualizer />
+    </Suspense>
   );
 }
