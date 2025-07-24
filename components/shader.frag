@@ -75,7 +75,7 @@ vec3 hsv2rgb(vec3 c) {
 
 void main() {
     // Normalize coordinates to -0.5..0.5
-    vec2 uv = gl_FragCoord.xy / (u_resolution.xy * vec2(u_pixel_ratio)) - vec2(1.0 / u_pixel_ratio);
+    vec2 uv = gl_FragCoord.xy / (u_resolution.xy * vec2(u_pixel_ratio)) - vec2(0.5);
 
     PendulumPair referencePendulums = pendulums(uv * u_size + u_center);
     PendulumPair adjacentPendulums = pendulums(uv * u_size + u_center + vec2(EPSILON));
