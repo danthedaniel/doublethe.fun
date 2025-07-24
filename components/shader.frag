@@ -3,6 +3,7 @@
 precision mediump float;
 
 uniform vec2 u_resolution; // Canvas resolution
+uniform float u_pixel_ratio; // Pixel ratio
 uniform vec2 u_size; // Size of angle space
 uniform vec2 u_center; // Center in angle space
 uniform float u_gravity; // Acceleration due to gravity (m/s^2)
@@ -73,11 +74,11 @@ vec3 hsv2rgb(vec3 c) {
 }
 
 void main() {
-    // Normalize coordinates to 0.0 - 1.0
-    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    // Normalize coordinates to -0.5..0.5
+    vec2 uv = gl_FragCoord.xy / (u_resolution.xy * vec2(u_pixel_ratio)) - vec2(1.0 / u_pixel_ratio);
 
-    PendulumPair referencePendulums = pendulums(uv * u_size - u_center);
-    PendulumPair adjacentPendulums = pendulums(uv * u_size - u_center + vec2(EPSILON));
+    PendulumPair referencePendulums = pendulums(uv * u_size + u_center);
+    PendulumPair adjacentPendulums = pendulums(uv * u_size + u_center + vec2(EPSILON));
 
     for (float i = 0.0; i < u_step_count; i++) {
         simulateTimeStep(referencePendulums.a, referencePendulums.b);

@@ -5,7 +5,8 @@ import { createPendulums, PendulumPair, PendulumSimulator } from "./pendulumSimu
 const timeStep = 0.001;
 
 interface DoublePendulumProps {
-  position: [number, number];
+  canvasSize: [number, number];
+  canvasCenter: [number, number];
   startingAngles: [number, number];
   gravity: number;
   lengths: [number, number];
@@ -17,20 +18,21 @@ const nodeStrokeWidth = 0.002;
 const lineWidth = 0.012;
 const lengthScale = 0.05;
 
-interface Coordinates {
+interface Coordinate {
   x: number;
   y: number;
 }
 
 export default function DoublePendulum({
-  position,
+  canvasSize,
+  canvasCenter,
   startingAngles,
   gravity,
   lengths: lengthsProp,
   masses: massesProp,
 }: DoublePendulumProps) {
-  const { width, height } = useWindowSize();
-  const scale = Math.min(width, height);
+  const windowSize = useWindowSize();
+  const scale = Math.min(windowSize.width, windowSize.height);
 
   const animationFuncRef = useRef<((timestamp: number) => void) | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -78,7 +80,7 @@ export default function DoublePendulum({
   useEffect(() => {
     simulatorRef.current = new PendulumSimulator(
       timeStep,
-      createPendulums(startingAngles, lengthsProp, massesProp),
+      createPendulums([startingAngles[0], startingAngles[1]], lengthsProp, massesProp),
       gravity
     );
 
@@ -109,19 +111,35 @@ export default function DoublePendulum({
     return null;
   }
 
-  const firstNode: Coordinates = {
-    x: position[0] * width,
-    y: position[1] * height,
+  const pixelsPerRadianX = windowSize.width / canvasSize[0];
+  const pixelsPerRadianY = windowSize.height / canvasSize[1];
+
+  const bottomLeftCorner: [number, number] = [
+    canvasCenter[0] - canvasSize[0] / 2,
+    canvasCenter[1] - canvasSize[1] / 2,
+  ];
+  const radiansFromBottomLeft: [number, number] = [
+    startingAngles[0] - bottomLeftCorner[0],
+    startingAngles[1] - bottomLeftCorner[1],
+  ];
+  const pixelsFromBottomLeft: [number, number] = [
+    pixelsPerRadianX * radiansFromBottomLeft[0],
+    pixelsPerRadianY * radiansFromBottomLeft[1],
+  ];
+
+  const firstNode: Coordinate = {
+    x: pixelsFromBottomLeft[0],
+    y: windowSize.height - pixelsFromBottomLeft[1],
   };
 
   // prettier-ignore
-  const secondNode: Coordinates = {
+  const secondNode: Coordinate = {
     x: firstNode.x + pendulums[0].length * Math.cos(pendulums[0].angle + Math.PI / 2) * lengthScale * scale,
     y: firstNode.y + pendulums[0].length * Math.sin(pendulums[0].angle + Math.PI / 2) * lengthScale * scale,
   };
 
   // prettier-ignore
-  const thirdNode: Coordinates = {
+  const thirdNode: Coordinate = {
     x: secondNode.x + pendulums[1].length * Math.cos(pendulums[1].angle + Math.PI / 2) * lengthScale * scale,
     y: secondNode.y + pendulums[1].length * Math.sin(pendulums[1].angle + Math.PI / 2) * lengthScale * scale,
   };
@@ -130,7 +148,7 @@ export default function DoublePendulum({
     <svg
       width="100vw"
       height="100vh"
-      viewBox={`0 0 ${width} ${height}`}
+      viewBox={`0 0 ${windowSize.width} ${windowSize.height}`}
       version="1.1"
       xmlns="http://www.w3.org/2000/svg"
       style={{

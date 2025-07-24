@@ -137,7 +137,7 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
   useEffect(() => {
     simulatorRef.current = new PendulumSimulator(
       timeStep,
-      createPendulums(startingAngles, lengths, masses),
+      createPendulums([startingAngles[0], startingAngles[1]], lengths, masses),
       gravity
     );
 
@@ -148,7 +148,6 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
 
     return () => {
       if (audioContextRef.current) {
-        // lower volume to 0
         audioContextRef.current.close().catch(console.error);
         audioContextRef.current = null;
       }

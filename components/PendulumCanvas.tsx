@@ -5,6 +5,7 @@ import fragmentShaderSource from "./shader.frag";
 import vertexShaderSource from "./shader.vert";
 import DoublePendulum from "./DoublePendulum";
 import PendulumAudio from "./PendulumAudio";
+import { useWindowSize } from "~/hooks/useWindowSize";
 
 function createShader(
   gl: WebGL2RenderingContext,
@@ -127,6 +128,10 @@ function setUniforms(
     uniforms.resolution[0],
     uniforms.resolution[1]
   );
+  gl.uniform1f(
+    gl.getUniformLocation(program, "u_pixel_ratio"),
+    uniforms.pixelRatio
+  );
   gl.uniform2f(
     gl.getUniformLocation(program, "u_size"),
     uniforms.size[0],
@@ -185,6 +190,7 @@ function setCanvasSize(
 
 interface ShaderUniforms {
   resolution: [number, number];
+  pixelRatio: number;
   size: [number, number];
   center: [number, number];
   gravity: number;
@@ -195,7 +201,7 @@ interface ShaderUniforms {
 
 export type InputUniforms = Omit<
   ShaderUniforms,
-  "resolution" | "size" | "center"
+  "resolution" | "size" | "center" | "pixelRatio"
 >;
 
 interface GLContext {
@@ -216,6 +222,8 @@ export default function PendulumCanvas({
   lowResScaleFactor,
   uniforms,
 }: PendulumCanvasProps) {
+  const windowSize = useWindowSize();
+
   const animationFrameRef = useRef<number | null>(null);
   const fullRenderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -223,15 +231,13 @@ export default function PendulumCanvas({
 
   const [fullUniforms, setFullUniforms] = useState<ShaderUniforms | null>(null);
   // prettier-ignore
-  const [size, setSize] = useState<[number, number]>([Math.PI, Math.PI]);
-  const [center, setCenter] = useState<[number, number]>([Math.PI, Math.PI]);
+  const [size, setSize] = useState<[number, number]>([2 * Math.PI, 2 * Math.PI]);
+  const [center, setCenter] = useState<[number, number]>([0, 0]);
 
   // Mouse state
   const [isDragging, setIsDragging] = useState(false);
+  const [wasDragged, setWasDragged] = useState(false);
   const [lastMousePos, setLastMousePos] = useState<[number, number]>([0, 0]);
-  const [clickedPosition, setClickedPosition] = useState<
-    [number, number] | null
-  >(null);
   const [clickedAngles, setClickedAngles] = useState<[number, number] | null>(
     null
   );
@@ -254,48 +260,13 @@ export default function PendulumCanvas({
     (e: WheelEvent) => {
       e.preventDefault();
 
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      // Get mouse position (normalised 0-1) relative to the canvas.
-      const rect = canvas.getBoundingClientRect();
-      const mouseX = (e.clientX - rect.left) / rect.width;
-      const mouseY = (e.clientY - rect.top) / rect.height;
-
-      // Zoom factor – scroll up to zoom in, scroll down to zoom out.
-      const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
-
-      // Perform **functional** state updates so each wheel event composes
-      // correctly even when many events fire in rapid succession.
-      setSize((prevSize) => {
-        const newSize: [number, number] = [
-          prevSize[0] * zoomFactor,
-          prevSize[1] * zoomFactor,
-        ];
-
-        setCenter((prevCenter) => {
-          const newCenterX = prevCenter[0] + mouseX * (newSize[0] - prevSize[0]);
-          const newCenterY = prevCenter[1] + (1 - mouseY) * (newSize[1] - prevSize[1]);
-
-          // Keep the DoublePendulum anchor fixed in world-space.
-          if (clickedPosition) {
-            const currentWorldX = clickedPosition[0] * prevSize[0] - prevCenter[0];
-            const currentWorldY =
-              (1 - clickedPosition[1]) * prevSize[1] - prevCenter[1];
-
-            const newClickedX = (currentWorldX + newCenterX) / newSize[0];
-            const newClickedY = 1 - (currentWorldY + newCenterY) / newSize[1];
-
-            setClickedPosition([newClickedX, newClickedY]);
-          }
-
-          return [newCenterX, newCenterY];
-        });
-
-        return newSize;
-      });
+      const zoomFactor = e.deltaY > 0 ? 10 / 9 : 9 / 10;
+      setSize((prevSize) => [
+        prevSize[0] * zoomFactor,
+        prevSize[1] * zoomFactor,
+      ]);
     },
-    [clickedPosition]
+    []
   );
 
   const handleClick = useCallback(
@@ -303,16 +274,21 @@ export default function PendulumCanvas({
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const rect = canvas.getBoundingClientRect();
-      const position: [number, number] = [
-        (e.clientX - rect.left) / rect.width,
-        (e.clientY - rect.top) / rect.height,
+      // Shader origin is in the bottom left corner.
+      const bottomLeftCorner: [number, number] = [
+        center[0] - size[0] / 2,
+        center[1] - size[1] / 2,
       ];
-      setClickedPosition(position);
+
+      const rect = canvas.getBoundingClientRect();
+      const radiansFromBottomLeft: [number, number] = [
+        (e.clientX - rect.left) / rect.width * size[0],
+        (rect.bottom - e.clientY) / rect.height * size[1],
+      ];
 
       const angles: [number, number] = [
-        position[0] * size[0] - center[0] + Math.PI / 2,
-        (1 - position[1]) * size[1] - center[1] + Math.PI / 2,
+        bottomLeftCorner[0] + radiansFromBottomLeft[0],
+        bottomLeftCorner[1] + radiansFromBottomLeft[1],
       ];
       setClickedAngles(angles);
     },
@@ -323,18 +299,12 @@ export default function PendulumCanvas({
   // Handle mouse down for panning
   const handleMouseDown = useCallback(
     (e: MouseEvent) => {
-      switch (e.button) {
-        case 0:
-          handleClick(e);
-          break;
-
-        case 1:
-          setIsDragging(true);
-          setLastMousePos([e.clientX, e.clientY]);
-          break;
+      if (e.button === 0) {
+        setIsDragging(true);
+        setLastMousePos([e.clientX, e.clientY]);
       }
     },
-    [handleClick]
+    []
   );
 
   // Handle mouse move for panning
@@ -350,41 +320,37 @@ export default function PendulumCanvas({
       const deltaY = (e.clientY - lastMousePos[1]) / rect.height;
 
       // Convert screen delta to world delta
-      const worldDeltaX = deltaX * size[0];
-      const worldDeltaY = -deltaY * size[1];
+      const worldDeltaX = -deltaX * size[0];
+      const worldDeltaY = deltaY * size[1];
 
+      setWasDragged(true);
       setCenter([
-        center[0] + worldDeltaX * window.devicePixelRatio,
-        center[1] + worldDeltaY * window.devicePixelRatio,
+        center[0] + worldDeltaX,
+        center[1] + worldDeltaY,
       ]);
       setLastMousePos([e.clientX, e.clientY]);
-
-      if (clickedPosition) {
-        // Update clickedPosition to maintain the same world position
-        // Convert current clicked position to world coordinates (matching the startingAngles calculation)
-        const currentWorldX = clickedPosition[0] * size[0] - center[0];
-        const currentWorldY = (1 - clickedPosition[1]) * size[1] - center[1];
-
-        // Convert back to normalized coordinates with new center
-        const newClickedX = (currentWorldX + center[0] + worldDeltaX) / size[0];
-        const newClickedY =
-          1 - (currentWorldY + center[1] + worldDeltaY) / size[1];
-
-        setClickedPosition([newClickedX, newClickedY]);
-      }
     },
-    [isDragging, lastMousePos, size, center, clickedPosition]
+    [isDragging, lastMousePos, size, center]
   );
 
   // Handle mouse up for panning
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+  const handleMouseUp = useCallback((event: MouseEvent) => {
+    if (event.button === 0) {
+      setIsDragging(false);
+      setWasDragged(prev => {
+        if (!prev) {
+          handleClick(event);
+        }
+
+        return false;
+      });
+    }
+  }, [handleClick]);
 
   // Change cursor on drag
   useEffect(() => {
-    document.body.style.cursor = isDragging ? "move" : "default";
-  }, [isDragging]);
+    document.body.style.cursor = isDragging && wasDragged ? "move" : "default";
+  }, [isDragging, wasDragged]);
 
   // Add event listeners
   useEffect(() => {
@@ -412,6 +378,7 @@ export default function PendulumCanvas({
       ...uniforms,
       size,
       center,
+      pixelRatio: window.devicePixelRatio,
       resolution: [
         canvasRef.current.clientWidth,
         canvasRef.current.clientHeight,
@@ -420,31 +387,20 @@ export default function PendulumCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(uniforms), size, center, canvasRef.current]);
 
-  // Update fullUniforms when canvas size changes
+  // Update fullUniforms when window size changes
   useEffect(() => {
-    if (!canvasRef.current) return;
+    setFullUniforms((prev) => {
+      if (!prev) return null;
 
-    const resizeObserver = new ResizeObserver((entries) => {
-      if (!canvasRef.current) return;
-
-      const entry = entries[0];
-      if (!entry) return;
-
-      const { width, height } = entry.contentRect;
-      setFullUniforms((prev) => {
-        if (!prev) return null;
-
-        return {
-          ...prev,
-          resolution: [width, height],
-        };
-      });
+      return {
+        ...prev,
+        resolution: [
+          windowSize.width,
+          windowSize.height,
+        ],
+      };
     });
-
-    resizeObserver.observe(document.body);
-
-    return () => resizeObserver.disconnect();
-  }, []);
+  }, [windowSize.width, windowSize.height]);
 
   // Setup WebGL context
   useEffect(() => {
@@ -563,14 +519,15 @@ export default function PendulumCanvas({
           imageRendering: "pixelated",
         }}
       />
-      {clickedPosition && clickedAngles && (
+      {clickedAngles && (
         <>
           <DoublePendulum
+            canvasSize={size}
+            canvasCenter={center}
             startingAngles={clickedAngles}
             lengths={uniforms.pendulumLengths}
             masses={uniforms.pendulumMasses}
             gravity={uniforms.gravity}
-            position={clickedPosition}
           />
           <PendulumAudio
             startingAngles={clickedAngles}
