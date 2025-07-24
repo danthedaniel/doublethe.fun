@@ -20,6 +20,8 @@ interface SliderProps {
   max: number;
   step: number;
   precision: number;
+  hideInput?: boolean;
+  reverse?: boolean;
   onChange: (value: number) => void;
 }
 
@@ -30,6 +32,8 @@ function Slider({
   max,
   step,
   precision,
+  hideInput,
+  reverse,
   onChange,
 }: SliderProps) {
   const [inputValue, setInputValue] = useState(value.toFixed(precision));
@@ -67,14 +71,16 @@ function Slider({
     <div className="mb-4">
       <div className="flex justify-between items-center mb-2">
         <label className="text-sm font-medium text-gray-700">{label}</label>
-        <input
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onBlur={handleInputBlur}
-          onKeyDown={handleInputKeyDown}
-          className="text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded w-16 text-center border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
+        {!hideInput && (
+          <input
+            type="text"
+            value={inputValue}
+            onChange={handleInputChange}
+            onBlur={handleInputBlur}
+            onKeyDown={handleInputKeyDown}
+            className="text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded w-16 text-center border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        )}
       </div>
       <input
         type="range"
@@ -85,6 +91,7 @@ function Slider({
         onChange={(e) => onChange(Number(e.target.value))}
         className={classNames(
           "w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer",
+          reverse ? "transform scale-x-[-1]" : "",
           styles.slider
         )}
       />
@@ -101,13 +108,15 @@ function ControlsContent({
   return (
     <>
       <Slider
-        label="Low Res Scale"
+        label="Dynamic Resolution"
         value={lowResScaleFactor}
         min={1}
         max={16}
         step={1}
         precision={0}
         onChange={(value) => setLowResScaleFactor(value)}
+        reverse={true}
+        hideInput={true}
       />
 
       <Slider
