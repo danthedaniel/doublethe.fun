@@ -20,7 +20,7 @@ function Visualizer() {
   const [uniforms, setUniforms] = useState<InputUniforms>(parseInputUniforms(searchParams) ?? defaultUniforms);
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen w-screen">
+    <div className="flex flex-col items-center justify-center h-screen w-screen pt-15 md:pt-0">
       <PendulumCanvas
         lowResScaleFactor={lowResScaleFactor}
         uniforms={uniforms}
@@ -37,7 +37,11 @@ function Visualizer() {
 
 export default function Home() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={
+      <div className="w-full h-full flex items-center justify-center text-center text-gray-500">
+        Loading...
+      </div>
+    }>
       <Visualizer />
     </Suspense>
   );

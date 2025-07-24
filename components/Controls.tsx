@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import { classNames } from "~/utils/classNames";
 import { InputUniforms } from "./PendulumCanvas";
 import styles from "./Controls.module.css";
 
@@ -82,9 +83,117 @@ function Slider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className={`w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer ${styles.slider}`}
+        className={classNames(
+          "w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer",
+          styles.slider
+        )}
       />
     </div>
+  );
+}
+
+function ControlsContent({
+  uniforms,
+  setUniforms,
+  lowResScaleFactor,
+  setLowResScaleFactor,
+}: ControlsProps) {
+  return (
+    <>
+      <Slider
+        label="Low Res Scale"
+        value={lowResScaleFactor}
+        min={1}
+        max={16}
+        step={1}
+        precision={0}
+        onChange={(value) => setLowResScaleFactor(value)}
+      />
+
+      <Slider
+        label="Step Count"
+        value={uniforms.stepCount}
+        min={50}
+        max={1000}
+        step={1}
+        precision={0}
+        onChange={(value) => setUniforms({ ...uniforms, stepCount: value })}
+      />
+
+      <Slider
+        label="Gravity"
+        value={uniforms.gravity}
+        min={0}
+        max={20}
+        step={0.1}
+        precision={1}
+        onChange={(value) => setUniforms({ ...uniforms, gravity: value })}
+      />
+
+      <h3 className="text-md font-medium text-gray-700 mb-3 border-b border-gray-200 pb-1">
+        Pendulum A
+      </h3>
+      <Slider
+        label="Length"
+        value={uniforms.pendulumLengths[0]}
+        min={0.1}
+        max={10}
+        step={0.1}
+        precision={1}
+        onChange={(value) =>
+          setUniforms({
+            ...uniforms,
+            pendulumLengths: [value, uniforms.pendulumLengths[1]],
+          })
+        }
+      />
+      <Slider
+        label="Mass"
+        value={uniforms.pendulumMasses[0]}
+        min={0.1}
+        max={10}
+        step={0.1}
+        precision={1}
+        onChange={(value) =>
+          setUniforms({
+            ...uniforms,
+            pendulumMasses: [value, uniforms.pendulumMasses[1]],
+          })
+        }
+      />
+
+      <h3 className="text-md font-medium text-gray-700 mb-3 border-b border-gray-200 pb-1">
+        Pendulum B
+      </h3>
+      <Slider
+        label="Length"
+        value={uniforms.pendulumLengths[1]}
+        min={0.1}
+        max={10}
+        step={0.1}
+        precision={1}
+        onChange={(value) =>
+          setUniforms({
+            ...uniforms,
+            pendulumLengths: [uniforms.pendulumLengths[0], value],
+          })
+        }
+      />
+      <Slider
+        label="Mass"
+        value={uniforms.pendulumMasses[1]}
+        min={0.1}
+        max={10}
+        step={0.1}
+        precision={1}
+        onChange={(value) =>
+          setUniforms({
+            ...uniforms,
+            pendulumMasses: [uniforms.pendulumMasses[0], value],
+          })
+        }
+      />
+    </>
   );
 }
 
@@ -94,125 +203,101 @@ export default function Controls({
   lowResScaleFactor,
   setLowResScaleFactor,
 }: ControlsProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Default to collapsed on small screens, expanded on md+ screens
+  const [isCollapsed, setIsCollapsed] = useState(true);
+
+  // Check if we're on a small screen and adjust default collapsed state
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const isSmallScreen = window.innerWidth < 768; // md breakpoint is 768px
+      if (!isSmallScreen) {
+        setIsCollapsed(false); // Default to expanded on md+ screens
+      }
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   return (
-    <div className="absolute top-4 left-4 bg-white/90 hover:bg-white backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-      {/* Header with toggle button */}
-      <div
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50/50 transition-colors"
-        onClick={() => setIsCollapsed(!isCollapsed)}
-      >
-        <h2 className="text-lg font-semibold text-gray-800">Controls</h2>
-        <ChevronDownIcon
-          className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${
-            isCollapsed ? "rotate-180" : ""
-          }`}
-        />
+    <>
+      {/* Mobile version */}
+      <div className="md:hidden">
+        {/* Sticky collapsed header */}
+        <div className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-lg border-b border-gray-200 z-40">
+          <div
+            className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50/50 transition-colors"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+          >
+            <h2 className="text-lg font-semibold text-gray-800">Controls</h2>
+            <ChevronDownIcon
+              className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${
+                isCollapsed ? "rotate-180" : ""
+              }`}
+            />
+          </div>
+        </div>
+
+        {!isCollapsed && (
+          <div className="fixed inset-0 bg-white z-50 overflow-y-auto">
+            {/* Sticky header in expanded state */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 z-10">
+              <div
+                className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => setIsCollapsed(true)}
+              >
+                <h2 className="text-lg font-semibold text-gray-800">Controls</h2>
+                <ChevronDownIcon className="w-5 h-5 text-gray-600" />
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <ControlsContent
+                uniforms={uniforms}
+                setUniforms={setUniforms}
+                lowResScaleFactor={lowResScaleFactor}
+                setLowResScaleFactor={setLowResScaleFactor}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Collapsible content */}
-      <div
-        className={`flex flex-col duration-300 ease-in-out w-56 ${
-          isCollapsed ? "max-h-0" : "max-h-[800px]"
-        } overflow-hidden`}
-      >
-        <div className="px-6 py-2">
-          <Slider
-            label="Low Res Scale"
-            value={lowResScaleFactor}
-            min={1}
-            max={16}
-            step={1}
-            precision={0}
-            onChange={(value) => setLowResScaleFactor(value)}
-          />
-
-          <Slider
-            label="Step Count"
-            value={uniforms.stepCount}
-            min={50}
-            max={1000}
-            step={1}
-            precision={0}
-            onChange={(value) => setUniforms({ ...uniforms, stepCount: value })}
-          />
-
-          <Slider
-            label="Gravity"
-            value={uniforms.gravity}
-            min={0}
-            max={20}
-            step={0.1}
-            precision={1}
-            onChange={(value) => setUniforms({ ...uniforms, gravity: value })}
-          />
-
-          <h3 className="text-md font-medium text-gray-700 mb-3 border-b border-gray-200 pb-1">
-            Pendulum A
-          </h3>
-          <Slider
-            label="Length"
-            value={uniforms.pendulumLengths[0]}
-            min={0.1}
-            max={10}
-            step={0.1}
-            precision={1}
-            onChange={(value) =>
-              setUniforms({
-                ...uniforms,
-                pendulumLengths: [value, uniforms.pendulumLengths[1]],
-              })
-            }
-          />
-          <Slider
-            label="Mass"
-            value={uniforms.pendulumMasses[0]}
-            min={0.1}
-            max={10}
-            step={0.1}
-            precision={1}
-            onChange={(value) =>
-              setUniforms({
-                ...uniforms,
-                pendulumMasses: [value, uniforms.pendulumMasses[1]],
-              })
-            }
-          />
-
-          <h3 className="text-md font-medium text-gray-700 mb-3 border-b border-gray-200 pb-1">
-            Pendulum B
-          </h3>
-          <Slider
-            label="Length"
-            value={uniforms.pendulumLengths[1]}
-            min={0.1}
-            max={10}
-            step={0.1}
-            precision={1}
-            onChange={(value) =>
-              setUniforms({
-                ...uniforms,
-                pendulumLengths: [uniforms.pendulumLengths[0], value],
-              })
-            }
-          />
-          <Slider
-            label="Mass"
-            value={uniforms.pendulumMasses[1]}
-            min={0.1}
-            max={10}
-            step={0.1}
-            precision={1}
-            onChange={(value) =>
-              setUniforms({
-                ...uniforms,
-                pendulumMasses: [uniforms.pendulumMasses[0], value],
-              })
-            }
+      {/* Desktop version */}
+      <div className="hidden md:block absolute top-4 left-4 bg-white/90 hover:bg-white backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+        {/* Header with toggle button */}
+        <div
+          className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50/50 transition-colors"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
+          <h2 className="text-lg font-semibold text-gray-800">Controls</h2>
+          <ChevronDownIcon
+            className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${
+              isCollapsed ? "rotate-180" : ""
+            }`}
           />
         </div>
+
+        <div
+          className={classNames(
+            "flex flex-col duration-300 ease-in-out w-56",
+            isCollapsed ? "max-h-0" : "max-h-[800px]",
+            "overflow-hidden"
+          )}
+        >
+          <div className="px-6 py-2">
+            <ControlsContent
+              uniforms={uniforms}
+              setUniforms={setUniforms}
+              lowResScaleFactor={lowResScaleFactor}
+              setLowResScaleFactor={setLowResScaleFactor}
+            />
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
