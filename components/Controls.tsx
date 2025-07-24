@@ -134,8 +134,8 @@ function ControlsContent({
         value={uniforms.gravity}
         min={0}
         max={20}
-        step={0.1}
-        precision={1}
+        step={0.01}
+        precision={2}
         onChange={(value) => setUniforms({ ...uniforms, gravity: value })}
       />
 
