@@ -97,7 +97,7 @@ export default function Controls({
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+    <div className="absolute top-4 left-4 bg-white/90 hover:bg-white backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 overflow-hidden">
       {/* Header with toggle button */}
       <div
         className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50/50 transition-colors"

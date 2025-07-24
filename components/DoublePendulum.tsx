@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWindowSize } from "~/hooks/useWindowSize";
-import { createPendulums, PendulumPair, PendulumSimulator } from "./pendulumSimulation";
+import { createPendulums, PendulumPair, PendulumSimulator } from "../utils/pendulumSimulation";
 
 const timeStep = 0.001;
 

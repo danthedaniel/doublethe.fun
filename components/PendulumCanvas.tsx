@@ -6,6 +6,9 @@ import vertexShaderSource from "./shader.vert";
 import DoublePendulum from "./DoublePendulum";
 import PendulumAudio from "./PendulumAudio";
 import { useWindowSize } from "~/hooks/useWindowSize";
+import { useSearchParams } from "next/navigation";
+import { parseCanvasParams } from "~/utils/paramParser";
+import ShareButton from "./ShareButton";
 
 function createShader(
   gl: WebGL2RenderingContext,
@@ -231,6 +234,7 @@ export default function PendulumCanvas({
   lowResScaleFactor,
   uniforms,
 }: PendulumCanvasProps) {
+  const searchParams = useSearchParams();
   const windowSize = useWindowSize();
 
   const animationFrameRef = useRef<number | null>(null);
@@ -388,6 +392,18 @@ export default function PendulumCanvas({
       });
     }
   }, [handleClick]);
+
+  useEffect(() => {
+    const canvasParams = parseCanvasParams(searchParams);
+    if (!canvasParams) {
+      return;
+    }
+
+    setSize(canvasParams.size);
+    setCenter(canvasParams.center);
+    setClickedAngles(canvasParams.clickedAngles);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, []);
 
   // Change cursor on drag
   useEffect(() => {
@@ -570,8 +586,25 @@ export default function PendulumCanvas({
     setClickedAngles(null);
   }, []);
 
+  const handleShare = useCallback(() => {
+    const params = new URLSearchParams();
+    params.set("gravity", uniforms.gravity.toString());
+    params.set("pendulumLengths", uniforms.pendulumLengths.join(","));
+    params.set("pendulumMasses", uniforms.pendulumMasses.join(","));
+    params.set("stepCount", uniforms.stepCount.toString());
+    params.set("size", size.join(","));
+    params.set("center", center.join(","));
+    params.set("clickedAngles", clickedAngles?.join(",") ?? "");
+
+    const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+    navigator.clipboard.writeText(url);
+  }, [uniforms, size, center, clickedAngles]);
+
   return (
     <>
+      <div className="absolute top-4 right-4">
+        <ShareButton onShare={handleShare} />
+      </div>
       <canvas
         ref={canvasRef}
         className="w-full h-full"

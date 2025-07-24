@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { createPendulums, PendulumPair, PendulumSimulator } from "./pendulumSimulation";
+import { createPendulums, PendulumPair, PendulumSimulator } from "../utils/pendulumSimulation";
 
 const timeStep = 0.005;
 const sampleRate = 44100;
