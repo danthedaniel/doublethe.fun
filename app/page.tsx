@@ -1,10 +1,21 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Controls from "~/components/Controls";
 import PendulumCanvas, { InputUniforms } from "~/components/PendulumCanvas";
 import { useSearchParams } from "next/navigation";
 import { parseInputUniforms } from "~/utils/paramParser";
+
+function getLowResScaleFactor() {
+  if (typeof window !== "undefined") {
+    const lowResScaleFactor = localStorage.getItem("lowResScaleFactor");
+    if (lowResScaleFactor) {
+      return parseInt(lowResScaleFactor);
+    }
+  }
+
+  return 8;
+}
 
 const defaultUniforms: InputUniforms = {
   gravity: 9.81,
@@ -16,8 +27,17 @@ const defaultUniforms: InputUniforms = {
 function Visualizer() {
   const searchParams = useSearchParams();
 
-  const [lowResScaleFactor, setLowResScaleFactor] = useState(8);
+  const [lowResScaleFactor, setLowResScaleFactorInner] = useState(getLowResScaleFactor());
   const [uniforms, setUniforms] = useState<InputUniforms>(parseInputUniforms(searchParams) ?? defaultUniforms);
+
+  const setLowResScaleFactor = useCallback((lowResScaleFactor: number) => {
+    localStorage.setItem("lowResScaleFactor", lowResScaleFactor.toString());
+    setLowResScaleFactorInner(lowResScaleFactor);
+  }, []);
+
+  useEffect(() => {
+    console.log("Source: https://github.com/danthedaniel/doublethe.fun");
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center h-screen w-screen pt-15 md:pt-0">
