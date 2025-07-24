@@ -57,7 +57,7 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
   const audioContextRef = useRef<AudioContext | null>(null);
   const simulatorRef = useRef<PendulumSimulator | null>(null);
 
-  const generateAudioChunk = useCallback(async (maxSeconds: number) => {
+  const generateAudioChunk = useCallback(async (maxSeconds: number): Promise<[Float32Array, Float32Array, boolean]> => {
     if (!simulatorRef.current) {
       throw new Error("Simulator not initialized");
     }
@@ -112,7 +112,7 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
       right = smoothAudioEnds(right, 10, sampleRate);
     }
 
-    return [new Float32Array(left), new Float32Array(right)];
+    return [new Float32Array(left), new Float32Array(right), loopFound];
   }, []);
 
   const playAudioChunk = useCallback(async (maxSeconds: number) => {
@@ -120,7 +120,7 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
       throw new Error("Audio context not initialized");
     }
 
-    const [left, right] = await generateAudioChunk(maxSeconds);
+    const [left, right, loopFound] = await generateAudioChunk(maxSeconds);
 
     const buffer = audioContextRef.current.createBuffer(2, left.length, sampleRate);
     buffer.copyToChannel(left, 0);
@@ -130,7 +130,17 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
     source.buffer = buffer;
     source.loop = true;
 
-    source.connect(audioContextRef.current.destination);
+    // Lower volume if loop is not found
+    if (!loopFound) {
+      const gain = audioContextRef.current.createGain();
+      gain.gain.value = 0.2;
+
+      gain.connect(audioContextRef.current.destination);
+      source.connect(gain);
+    } else {
+      source.connect(audioContextRef.current.destination);
+    }
+
     source.start(audioContextRef.current.currentTime);
   }, [generateAudioChunk]);
 
