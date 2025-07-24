@@ -269,13 +269,46 @@ export default function PendulumCanvas({
     (e: WheelEvent) => {
       e.preventDefault();
 
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
       const zoomFactor = e.deltaY > 0 ? 10 / 9 : 9 / 10;
-      setSize((prevSize) => [
-        prevSize[0] * zoomFactor,
-        prevSize[1] * zoomFactor,
-      ]);
+
+      // Get mouse position relative to canvas
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // Convert mouse position to normalized coordinates (0 to 1)
+      const normalizedX = mouseX / rect.width;
+      const normalizedY = (rect.height - mouseY) / rect.height; // Flip Y for shader coordinates
+
+      // Convert normalized coordinates to world coordinates
+      const worldMouseX = center[0] - size[0] / 2 + normalizedX * size[0];
+      const worldMouseY = center[1] - size[1] / 2 + normalizedY * size[1];
+
+      setSize((prevSize) => {
+        const newSize: [number, number] = [
+          prevSize[0] * zoomFactor,
+          prevSize[1] * zoomFactor,
+        ];
+
+        // Calculate new center to keep mouse position fixed
+        const newWorldMouseX = center[0] - newSize[0] / 2 + normalizedX * newSize[0];
+        const newWorldMouseY = center[1] - newSize[1] / 2 + normalizedY * newSize[1];
+
+        const centerOffsetX = worldMouseX - newWorldMouseX;
+        const centerOffsetY = worldMouseY - newWorldMouseY;
+
+        setCenter([
+          center[0] + centerOffsetX,
+          center[1] + centerOffsetY,
+        ]);
+
+        return newSize;
+      });
     },
-    []
+    [center, size]
   );
 
   const handleClick = useCallback(

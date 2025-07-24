@@ -133,7 +133,7 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
     // Lower volume if loop is not found
     if (!loopFound) {
       const gain = audioContextRef.current.createGain();
-      gain.gain.value = 0.2;
+      gain.gain.value = 0.1;
 
       gain.connect(audioContextRef.current.destination);
       source.connect(gain);
