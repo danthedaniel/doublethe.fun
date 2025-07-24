@@ -11,6 +11,7 @@ interface DoublePendulumProps {
   gravity: number;
   lengths: [number, number];
   masses: [number, number];
+  onRemove: () => void;
 }
 
 const nodeRadius = 0.006;
@@ -30,6 +31,7 @@ export default function DoublePendulum({
   gravity,
   lengths: lengthsProp,
   masses: massesProp,
+  onRemove,
 }: DoublePendulumProps) {
   const windowSize = useWindowSize();
   const scale = Math.min(windowSize.width, windowSize.height);
@@ -189,7 +191,10 @@ export default function DoublePendulum({
           fill: "white",
           stroke: "black",
           strokeWidth: `${nodeStrokeWidth * scale}px`,
+          cursor: "pointer",
+          pointerEvents: "auto",
         }}
+        onClick={onRemove}
       />
 
       <circle

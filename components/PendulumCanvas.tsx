@@ -566,6 +566,10 @@ export default function PendulumCanvas({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(fullUniforms), scheduleRenders]);
 
+  const handleRemove = useCallback(() => {
+    setClickedAngles(null);
+  }, []);
+
   return (
     <>
       <canvas
@@ -584,6 +588,7 @@ export default function PendulumCanvas({
             lengths={uniforms.pendulumLengths}
             masses={uniforms.pendulumMasses}
             gravity={uniforms.gravity}
+            onRemove={handleRemove}
           />
           <PendulumAudio
             startingAngles={clickedAngles}
