@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPendulums, PendulumPair, PendulumSimulator } from "../utils/pendulumSimulation";
+import MuteButton from "./MuteButton";
 
 const timeStep = 0.005;
 const sampleRate = 44100;
@@ -55,7 +56,11 @@ interface PendulumAudioProps {
 
 export default function PendulumAudio({ startingAngles, lengths, masses, gravity }: PendulumAudioProps) {
   const audioContextRef = useRef<AudioContext | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
   const simulatorRef = useRef<PendulumSimulator | null>(null);
+
+  const [isMuted, setIsMuted] = useState(localStorage.getItem("muted") !== "false");
+  const [isStatic, setIsStatic] = useState(false);
 
   const generateAudioChunk = useCallback(async (maxSeconds: number): Promise<[Float32Array, Float32Array, boolean]> => {
     if (!simulatorRef.current) {
@@ -115,12 +120,22 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
     return [new Float32Array(left), new Float32Array(right), loopFound];
   }, []);
 
+  useEffect(() => {
+    if (!gainRef.current) {
+      return;
+    }
+
+    localStorage.setItem("muted", isMuted.toString());
+    gainRef.current.gain.value = isMuted ? 0 : isStatic ? 0.1 : 1.0;
+  }, [isMuted, isStatic]);
+
   const playAudioChunk = useCallback(async (maxSeconds: number) => {
     if (!audioContextRef.current) {
       throw new Error("Audio context not initialized");
     }
 
     const [left, right, loopFound] = await generateAudioChunk(maxSeconds);
+    setIsStatic(!loopFound);
 
     const buffer = audioContextRef.current.createBuffer(2, left.length, sampleRate);
     buffer.copyToChannel(left, 0);
@@ -131,18 +146,15 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
     source.loop = true;
 
     // Lower volume if loop is not found
-    if (!loopFound) {
-      const gain = audioContextRef.current.createGain();
-      gain.gain.value = 0.1;
+    gainRef.current = audioContextRef.current.createGain();
+    gainRef.current.gain.value = isMuted ? 0 : loopFound ? 1.0 : 0.1;
 
-      gain.connect(audioContextRef.current.destination);
-      source.connect(gain);
-    } else {
-      source.connect(audioContextRef.current.destination);
-    }
+    // Hook up audio nodes
+    gainRef.current.connect(audioContextRef.current.destination);
+    source.connect(gainRef.current);
 
     source.start(audioContextRef.current.currentTime);
-  }, [generateAudioChunk]);
+  }, [generateAudioChunk, isMuted]);
 
   useEffect(() => {
     simulatorRef.current = new PendulumSimulator(
@@ -157,6 +169,10 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
       .catch(console.error);
 
     return () => {
+      if (gainRef.current) {
+        gainRef.current = null;
+      }
+
       if (audioContextRef.current) {
         audioContextRef.current.close().catch(console.error);
         audioContextRef.current = null;
@@ -174,5 +190,9 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
   ]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
-  return null;
+  return (
+    <div className="absolute top-18 right-4">
+      <MuteButton isMuted={isMuted} onMute={() => setIsMuted(!isMuted)} />
+    </div>
+  );
 }
