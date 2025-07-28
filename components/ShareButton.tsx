@@ -1,5 +1,5 @@
-import { ShareIcon } from "@heroicons/react/24/outline";
 import { useCallback, useState } from "react";
+import { ShareIcon } from "@heroicons/react/24/outline";
 
 interface ShareButtonProps {
   onShare: () => void;

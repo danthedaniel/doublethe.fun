@@ -1,9 +1,9 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Controls from "~/components/Controls";
 import PendulumCanvas, { InputUniforms } from "~/components/PendulumCanvas";
-import { useSearchParams, useRouter } from "next/navigation";
 import { parseInputUniforms } from "~/utils/paramParser";
 
 function getLowResScaleFactor() {
@@ -61,13 +61,17 @@ function Visualizer() {
   );
 }
 
+function Loading() {
+  return (
+    <div className="w-full h-full flex items-center justify-center text-center text-gray-500">
+      Loading...
+    </div>
+  );
+}
+
 export default function Home() {
   return (
-    <Suspense fallback={
-      <div className="w-full h-full flex items-center justify-center text-center text-gray-500">
-        Loading...
-      </div>
-    }>
+    <Suspense fallback={<Loading />}>
       <Visualizer />
     </Suspense>
   );

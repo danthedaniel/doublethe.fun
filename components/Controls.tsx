@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { classNames } from "~/utils/classNames";
-import { InputUniforms } from "./PendulumCanvas";
 import styles from "./Controls.module.css";
+import { InputUniforms } from "./PendulumCanvas";
 
 interface ControlsProps {
   uniforms: InputUniforms;
