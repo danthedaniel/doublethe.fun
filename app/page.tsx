@@ -14,7 +14,7 @@ function getLowResScaleFactor() {
     }
   }
 
-  return 8;
+  return 10;
 }
 
 const defaultUniforms: InputUniforms = {

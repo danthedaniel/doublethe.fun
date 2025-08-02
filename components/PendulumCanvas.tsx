@@ -534,7 +534,7 @@ export default function PendulumCanvas({
 
           render();
         });
-      }, 250);
+      }, 500);
 
       return [animationFrame, fullResRenderTimeout];
     },
