@@ -1,11 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPendulums, PendulumPair, PendulumSimulator } from "../utils/pendulumSimulation";
+import {
+  createPendulums,
+  PendulumPair,
+  PendulumSimulator,
+} from "../utils/pendulumSimulation";
 import MuteButton from "./MuteButton";
 
 const timeStep = 0.005;
 const sampleRate = 44100;
 
-function smoothAudioEnds(samples: number[], crossFadeMs: number, sampleRate: number): number[] {
+/**
+ * Smooths an audio loop by applying a cross-fade effect.
+ * @param samples - The audio samples to smooth.
+ * @param crossFadeMs - The duration of the cross-fade effect in milliseconds.
+ * @param sampleRate - The sample rate of the audio.
+ * @returns The smoothed audio samples.
+ */
+function smoothAudioLoop(
+  samples: number[],
+  crossFadeMs: number,
+  sampleRate: number,
+): number[] {
   const N = Math.floor((crossFadeMs / 1000) * sampleRate);
   const len = samples.length;
   if (N <= 0 || N * 2 >= len) {
@@ -15,8 +30,8 @@ function smoothAudioEnds(samples: number[], crossFadeMs: number, sampleRate: num
   const window = [...samples];
 
   for (let k = 0; k < N; k++) {
-    const fadeOut = 0.5 * (1 + Math.cos(Math.PI * k / N));
-    const fadeIn  = 1 - fadeOut;
+    const fadeOut = 0.5 * (1 + Math.cos((Math.PI * k) / N));
+    const fadeIn = 1 - fadeOut;
     const tailIdx = len - N + k;
     const headIdx = k;
 
@@ -33,10 +48,10 @@ function smoothAudioEnds(samples: number[], crossFadeMs: number, sampleRate: num
  */
 function pendulumPairDistance(a: PendulumPair, b: PendulumPair): number {
   return Math.sqrt(
-    (a[0].angle    - b[0].angle   ) ** 2 +
-    (a[0].momentum - b[0].momentum) ** 2 +
-    (a[1].angle    - b[1].angle   ) ** 2 +
-    (a[1].momentum - b[1].momentum) ** 2
+    (a[0].angle - b[0].angle) ** 2 +
+      (a[0].momentum - b[0].momentum) ** 2 +
+      (a[1].angle - b[1].angle) ** 2 +
+      (a[1].momentum - b[1].momentum) ** 2,
   );
 }
 
@@ -54,71 +69,95 @@ interface PendulumAudioProps {
   gravity: number;
 }
 
-export default function PendulumAudio({ startingAngles, lengths, masses, gravity }: PendulumAudioProps) {
+/**
+ * How loud the audio should be.
+ */
+function gainLevel(isMuted: boolean, isStatic: boolean): number {
+  if (isMuted) return 0;
+  if (isStatic) return 0.1;
+  return 1;
+}
+
+export default function PendulumAudio({
+  startingAngles,
+  lengths,
+  masses,
+  gravity,
+}: PendulumAudioProps) {
   const audioContextRef = useRef<AudioContext | null>(null);
   const gainRef = useRef<GainNode | null>(null);
   const simulatorRef = useRef<PendulumSimulator | null>(null);
 
-  const [isMuted, setIsMuted] = useState(localStorage.getItem("muted") !== "false");
+  const [isMuted, setIsMuted] = useState(
+    localStorage.getItem("muted") !== "false",
+  );
+  // Whether the audio is white noise.
   const [isStatic, setIsStatic] = useState(false);
 
-  const generateAudioChunk = useCallback(async (maxSeconds: number): Promise<[Float32Array, Float32Array, boolean]> => {
-    if (!simulatorRef.current) {
-      throw new Error("Simulator not initialized");
-    }
-
-    const states: PendulumPair[] = [];
-
-    // Skip the first 1000 steps to get the system to a stable state
-    for (let i = 0; i < 1000; i++) {
-      simulatorRef.current.step();
-    }
-
-    // Get the initial state
-    states.push(simulatorRef.current.getState());
-
-    const minSamples = 100;
-    // We use the minimum distance from the first few samples as a reference for
-    // how distant we typically are from the initial state.
-    let minDistance = Infinity;
-    // Collect at least 100 samples
-    for (let i = 0; i < minSamples; i++) {
-      const newState = simulatorRef.current.step();
-
-      const distance = pendulumPairDistance(newState, states[0]);
-      if (distance < minDistance) {
-        minDistance = distance;
+  const generateAudioChunk = useCallback(
+    async (
+      maxSeconds: number,
+    ): Promise<
+      [Float32Array<ArrayBuffer>, Float32Array<ArrayBuffer>, boolean]
+    > => {
+      if (!simulatorRef.current) {
+        throw new Error("Simulator not initialized");
       }
 
-      states.push(newState);
-    }
+      const states: PendulumPair[] = [];
 
-    let loopFound = false;
-    // Search for a sample that is close to the initial state
-    for (let i = 0; i < (sampleRate * maxSeconds - (minSamples + 1)); i++) {
-      if (i % 4410 === 0) {
-        await new Promise((resolve) => setTimeout(resolve, 10));
+      // Skip the first 1000 steps to get the system to a stable state
+      for (let i = 0; i < 1000; i++) {
+        simulatorRef.current.step();
       }
 
-      const newState = simulatorRef.current.step();
-      if (pendulumPairDistance(newState, states[0]) < (minDistance * 1.01)) {
-        loopFound = true;
-        break;
+      // Get the initial state
+      states.push(simulatorRef.current.getState());
+
+      const minSamples = 100;
+      // We use the minimum distance from the first few samples as a reference for
+      // how distant we typically are from the initial state.
+      let minDistance = Infinity;
+      // Collect at least 100 samples
+      for (let i = 0; i < minSamples; i++) {
+        const newState = simulatorRef.current.step();
+
+        const distance = pendulumPairDistance(newState, states[0]);
+        if (distance < minDistance) {
+          minDistance = distance;
+        }
+
+        states.push(newState);
       }
 
-      states.push(newState);
-    }
+      let loopFound = false;
+      // Search for a sample that is close to the initial state
+      for (let i = 0; i < sampleRate * maxSeconds - (minSamples + 1); i++) {
+        if (i % 4410 === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
 
-    let left = states.map((state) => angleToSample(state[0].angle));
-    let right = states.map((state) => angleToSample(state[1].angle));
+        const newState = simulatorRef.current.step();
+        if (pendulumPairDistance(newState, states[0]) < minDistance * 1.01) {
+          loopFound = true;
+          break;
+        }
 
-    if (!loopFound) {
-      left = smoothAudioEnds(left, 10, sampleRate);
-      right = smoothAudioEnds(right, 10, sampleRate);
-    }
+        states.push(newState);
+      }
 
-    return [new Float32Array(left), new Float32Array(right), loopFound];
-  }, []);
+      let left = states.map((state) => angleToSample(state[0].angle));
+      let right = states.map((state) => angleToSample(state[1].angle));
+
+      if (!loopFound) {
+        left = smoothAudioLoop(left, 10, sampleRate);
+        right = smoothAudioLoop(right, 10, sampleRate);
+      }
+
+      return [new Float32Array(left), new Float32Array(right), loopFound];
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!gainRef.current) {
@@ -126,45 +165,54 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
     }
 
     localStorage.setItem("muted", isMuted.toString());
-    gainRef.current.gain.value = isMuted ? 0 : isStatic ? 0.1 : 1.0;
+    gainRef.current.gain.value = gainLevel(isMuted, isStatic);
   }, [isMuted, isStatic]);
 
-  const playAudioChunk = useCallback(async (maxSeconds: number) => {
-    if (!audioContextRef.current) {
-      throw new Error("Audio context not initialized");
-    }
+  const playAudioChunk = useCallback(
+    async (maxSeconds: number) => {
+      if (!audioContextRef.current) {
+        throw new Error("Audio context not initialized");
+      }
 
-    const [left, right, loopFound] = await generateAudioChunk(maxSeconds);
-    setIsStatic(!loopFound);
+      const [left, right, loopFound] = await generateAudioChunk(maxSeconds);
+      const isStatic = !loopFound;
+      setIsStatic(isStatic);
 
-    const buffer = audioContextRef.current.createBuffer(2, left.length, sampleRate);
-    buffer.copyToChannel(left, 0);
-    buffer.copyToChannel(right, 1);
+      const buffer = audioContextRef.current.createBuffer(
+        2,
+        left.length,
+        sampleRate,
+      );
+      buffer.copyToChannel(left, 0);
+      buffer.copyToChannel(right, 1);
 
-    const source = audioContextRef.current.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
 
-    // Lower volume if loop is not found
-    gainRef.current = audioContextRef.current.createGain();
-    gainRef.current.gain.value = isMuted ? 0 : loopFound ? 1.0 : 0.1;
+      // Lower volume if loop is not found
+      gainRef.current = audioContextRef.current.createGain();
+      gainRef.current.gain.value = gainLevel(isMuted, isStatic);
 
-    // Hook up audio nodes
-    gainRef.current.connect(audioContextRef.current.destination);
-    source.connect(gainRef.current);
+      // Hook up audio nodes
+      gainRef.current.connect(audioContextRef.current.destination);
+      source.connect(gainRef.current);
 
-    source.start(audioContextRef.current.currentTime);
-  }, [generateAudioChunk, isMuted]);
+      source.start(audioContextRef.current.currentTime);
+    },
+    [generateAudioChunk, isMuted],
+  );
 
   useEffect(() => {
     simulatorRef.current = new PendulumSimulator(
       timeStep,
       createPendulums([startingAngles[0], startingAngles[1]], lengths, masses),
-      gravity
+      gravity,
     );
 
     audioContextRef.current = new AudioContext();
-    audioContextRef.current.resume()
+    audioContextRef.current
+      .resume()
       .then(() => playAudioChunk(1))
       .catch(console.error);
 
@@ -192,7 +240,10 @@ export default function PendulumAudio({ startingAngles, lengths, masses, gravity
 
   return (
     <div className="absolute bottom-32 md:top-32 right-4">
-      <MuteButton isMuted={isMuted} onMute={() => setIsMuted(!isMuted)} />
+      <MuteButton
+        isMuted={isMuted}
+        onMute={() => setIsMuted((prev) => !prev)}
+      />
     </div>
   );
 }

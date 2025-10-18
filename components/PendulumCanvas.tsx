@@ -21,12 +21,37 @@ function setCanvasSize(
   canvas: HTMLCanvasElement,
   width: number,
   height: number,
-  pixelRatio: number
+  pixelRatio: number,
 ) {
   canvas.width = width * pixelRatio;
   canvas.height = height * pixelRatio;
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
+}
+
+// Helper function to get touch distance
+function getTouchDistance(touches: TouchList): number {
+  if (touches.length < 2) return 0;
+
+  const touch1 = touches[0];
+  const touch2 = touches[1];
+  const dx = touch1.clientX - touch2.clientX;
+  const dy = touch1.clientY - touch2.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Helper function to get touch center
+function getTouchCenter(touches: TouchList): [number, number] {
+  if (touches.length === 1) {
+    return [touches[0].clientX, touches[0].clientY];
+  }
+
+  const touch1 = touches[0];
+  const touch2 = touches[1];
+  return [
+    (touch1.clientX + touch2.clientX) / 2,
+    (touch1.clientY + touch2.clientY) / 2,
+  ];
 }
 
 export type InputUniforms = Omit<
@@ -61,7 +86,7 @@ export default function PendulumCanvas({
   const [wasDragged, setWasDragged] = useState(false);
   const [lastMousePos, setLastMousePos] = useState<[number, number]>([0, 0]);
   const [clickedAngles, setClickedAngles] = useState<[number, number] | null>(
-    null
+    null,
   );
 
   // Touch state
@@ -126,31 +151,15 @@ export default function PendulumCanvas({
         return newSize;
       });
     },
-    [center, size]
+    [center, size],
   );
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  // Helper function to get touch distance
-  const getTouchDistance = useCallback((touches: TouchList) => {
-    if (touches.length < 2) return 0;
-    const touch1 = touches[0];
-    const touch2 = touches[1];
-    const dx = touch1.clientX - touch2.clientX;
-    const dy = touch1.clientY - touch2.clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  }, []);
-
-  // Helper function to get touch center
-  const getTouchCenter = useCallback((touches: TouchList): [number, number] => {
-    if (touches.length === 1) {
-      return [touches[0].clientX, touches[0].clientY];
-    }
-    const touch1 = touches[0];
-    const touch2 = touches[1];
-    return [
-      (touch1.clientX + touch2.clientX) / 2,
-      (touch1.clientY + touch2.clientY) / 2,
-    ];
-  }, []);
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
 
   const handleClick = useCallback(
     (clientX: number, clientY: number) => {
@@ -176,14 +185,14 @@ export default function PendulumCanvas({
       setClickedAngles(angles);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [size[0], size[1], center[0], center[1]]
+    [size[0], size[1], center[0], center[1]],
   );
 
   const handleMouseClick = useCallback(
     (e: MouseEvent) => {
       handleClick(e.clientX, e.clientY);
     },
-    [handleClick]
+    [handleClick],
   );
 
   // Handle mouse down for panning
@@ -193,6 +202,13 @@ export default function PendulumCanvas({
       setLastMousePos([e.clientX, e.clientY]);
     }
   }, []);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.addEventListener("mousedown", handleMouseDown);
+    return () => canvas.removeEventListener("mousedown", handleMouseDown);
+  }, [handleMouseDown]);
 
   // Handle mouse move for panning
   const handleMouseMove = useCallback(
@@ -214,8 +230,12 @@ export default function PendulumCanvas({
       setCenter([center[0] + worldDeltaX, center[1] + worldDeltaY]);
       setLastMousePos([e.clientX, e.clientY]);
     },
-    [isDragging, lastMousePos, size, center]
+    [isDragging, lastMousePos, size, center],
   );
+  useEffect(() => {
+    document.addEventListener("mousemove", handleMouseMove);
+    return () => document.removeEventListener("mousemove", handleMouseMove);
+  }, [handleMouseMove]);
 
   // Handle mouse up for panning
   const handleMouseUp = useCallback(
@@ -231,27 +251,105 @@ export default function PendulumCanvas({
         });
       }
     },
-    [handleMouseClick]
+    [handleMouseClick],
   );
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.addEventListener("mouseup", handleMouseUp);
+    return () => canvas.removeEventListener("mouseup", handleMouseUp);
+  }, [handleMouseUp]);
 
   // Handle touch start
-  const handleTouchStart = useCallback(
-    (e: TouchEvent) => {
-      e.preventDefault();
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    e.preventDefault();
 
-      const touches = e.touches;
-      if (touches.length === 1) {
+    switch (e.touches.length) {
+      case 1:
         // Single finger - start panning
         setIsTouching(true);
-        setLastTouchPos([touches[0].clientX, touches[0].clientY]);
-      } else if (touches.length === 2) {
+        setLastTouchPos([e.touches[0].clientX, e.touches[0].clientY]);
+        break;
+      case 2:
         // Two fingers - start pinch zoom
         setIsTouching(true);
-        const distance = getTouchDistance(touches);
+        const distance = getTouchDistance(e.touches);
         setLastTouchDistance(distance);
-      }
+        break;
+    }
+  }, []);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
+    return () => canvas.removeEventListener("touchstart", handleTouchStart);
+  }, [handleTouchStart]);
+
+  const handleTouchPan = useCallback(
+    (canvas: HTMLCanvasElement, touch: Touch) => {
+      const rect = canvas.getBoundingClientRect();
+
+      const deltaX = (touch.clientX - lastTouchPos[0]) / rect.width;
+      const deltaY = (touch.clientY - lastTouchPos[1]) / rect.height;
+
+      // Convert screen delta to world delta
+      const worldDeltaX = -deltaX * size[0];
+      const worldDeltaY = deltaY * size[1];
+
+      setWasTouched(true);
+      setCenter([center[0] + worldDeltaX, center[1] + worldDeltaY]);
+      setLastTouchPos([touch.clientX, touch.clientY]);
     },
-    [getTouchDistance]
+    [size, center, lastTouchPos],
+  );
+
+  const handleTouchZoom = useCallback(
+    (canvas: HTMLCanvasElement, touches: TouchList) => {
+      // Two fingers - pinch zoom
+      const distance = getTouchDistance(touches);
+      setLastTouchDistance(distance);
+      if (distance === 0) {
+        return;
+      }
+
+      const touchCenter = getTouchCenter(touches);
+      const zoomFactor = distance / lastTouchDistance;
+
+      // Get touch center relative to canvas
+      const rect = canvas.getBoundingClientRect();
+      const normalizedX = (touchCenter[0] - rect.left) / rect.width;
+      const normalizedY =
+        (rect.height - (touchCenter[1] - rect.top)) / rect.height;
+
+      // Convert normalized coordinates to world coordinates
+      const worldTouchX = center[0] - size[0] / 2 + normalizedX * size[0];
+      const worldTouchY = center[1] - size[1] / 2 + normalizedY * size[1];
+
+      setSize((prevSize) => {
+        const newSize: [number, number] = [
+          prevSize[0] / zoomFactor,
+          prevSize[1] / zoomFactor,
+        ];
+
+        // Calculate new center to keep touch center fixed
+        const newWorldTouchX =
+          center[0] - newSize[0] / 2 + normalizedX * newSize[0];
+        const newWorldTouchY =
+          center[1] - newSize[1] / 2 + normalizedY * newSize[1];
+
+        const centerOffsetX = worldTouchX - newWorldTouchX;
+        const centerOffsetY = worldTouchY - newWorldTouchY;
+
+        setCenter([center[0] + centerOffsetX, center[1] + centerOffsetY]);
+
+        return newSize;
+      });
+
+      setWasTouched(true);
+    },
+    [center, size, lastTouchDistance],
   );
 
   // Handle touch move
@@ -264,101 +362,60 @@ export default function PendulumCanvas({
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const touches = e.touches;
-
-      if (touches.length === 1) {
-        // Single finger - pan
-        const touch = touches[0];
-        const rect = canvas.getBoundingClientRect();
-
-        const deltaX = (touch.clientX - lastTouchPos[0]) / rect.width;
-        const deltaY = (touch.clientY - lastTouchPos[1]) / rect.height;
-
-        // Convert screen delta to world delta
-        const worldDeltaX = -deltaX * size[0];
-        const worldDeltaY = deltaY * size[1];
-
-        setWasTouched(true);
-        setCenter([center[0] + worldDeltaX, center[1] + worldDeltaY]);
-        setLastTouchPos([touch.clientX, touch.clientY]);
-      } else if (touches.length === 2) {
-        // Two fingers - pinch zoom
-        const distance = getTouchDistance(touches);
-        const touchCenter = getTouchCenter(touches);
-
-        if (lastTouchDistance > 0) {
-          const zoomFactor = distance / lastTouchDistance;
-
-          // Get touch center relative to canvas
-          const rect = canvas.getBoundingClientRect();
-          const normalizedX = (touchCenter[0] - rect.left) / rect.width;
-          const normalizedY =
-            (rect.height - (touchCenter[1] - rect.top)) / rect.height;
-
-          // Convert normalized coordinates to world coordinates
-          const worldTouchX = center[0] - size[0] / 2 + normalizedX * size[0];
-          const worldTouchY = center[1] - size[1] / 2 + normalizedY * size[1];
-
-          setSize((prevSize) => {
-            const newSize: [number, number] = [
-              prevSize[0] / zoomFactor,
-              prevSize[1] / zoomFactor,
-            ];
-
-            // Calculate new center to keep touch center fixed
-            const newWorldTouchX =
-              center[0] - newSize[0] / 2 + normalizedX * newSize[0];
-            const newWorldTouchY =
-              center[1] - newSize[1] / 2 + normalizedY * newSize[1];
-
-            const centerOffsetX = worldTouchX - newWorldTouchX;
-            const centerOffsetY = worldTouchY - newWorldTouchY;
-
-            setCenter([center[0] + centerOffsetX, center[1] + centerOffsetY]);
-
-            return newSize;
-          });
-        }
-
-        setWasTouched(true);
-        setLastTouchDistance(distance);
+      switch (e.touches.length) {
+        case 1:
+          handleTouchPan(canvas, e.touches[0]);
+          break;
+        case 2:
+          handleTouchZoom(canvas, e.touches);
+          break;
       }
     },
-    [
-      isTouching,
-      lastTouchPos,
-      lastTouchDistance,
-      size,
-      center,
-      getTouchDistance,
-      getTouchCenter,
-    ]
+    [isTouching, handleTouchPan, handleTouchZoom],
   );
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
+    return () => canvas.removeEventListener("touchmove", handleTouchMove);
+  }, [handleTouchMove]);
 
   // Handle touch end
   const handleTouchEnd = useCallback(
     (e: TouchEvent) => {
       e.preventDefault();
 
-      if (e.touches.length === 0) {
-        // All fingers lifted
-        setIsTouching(false);
-        setWasTouched((prev) => {
-          if (!prev && e.changedTouches.length === 1) {
-            // Single tap
-            const touch = e.changedTouches[0];
-            handleClick(touch.clientX, touch.clientY);
+      switch (e.touches.length) {
+        case 0:
+          setIsTouching(false);
+          setWasTouched((prev) => {
+            if (!prev && e.changedTouches.length === 1) {
+              // Single tap
+              const touch = e.changedTouches[0];
+              handleClick(touch.clientX, touch.clientY);
+            }
+            return false;
+          });
+          break;
+        case 1:
+          if (lastTouchDistance > 0) {
+            // Went from two fingers to one - reset for panning
+            setLastTouchDistance(0);
+            setLastTouchPos([e.touches[0].clientX, e.touches[0].clientY]);
           }
-          return false;
-        });
-      } else if (e.touches.length === 1 && lastTouchDistance > 0) {
-        // Went from two fingers to one - reset for panning
-        setLastTouchDistance(0);
-        setLastTouchPos([e.touches[0].clientX, e.touches[0].clientY]);
+          break;
       }
     },
-    [lastTouchDistance, handleClick]
+    [lastTouchDistance, handleClick],
   );
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.addEventListener("touchend", handleTouchEnd, { passive: false });
+    return () => canvas.removeEventListener("touchend", handleTouchEnd);
+  }, [handleTouchEnd]);
 
   useEffect(() => {
     const canvasParams = parseCanvasParams(searchParams);
@@ -379,42 +436,6 @@ export default function PendulumCanvas({
         ? "move"
         : "default";
   }, [isDragging, wasDragged, isTouching, wasTouched]);
-
-  // Add event listeners
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    canvas.addEventListener("wheel", handleWheel, { passive: false });
-    canvas.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("mousemove", handleMouseMove);
-    canvas.addEventListener("mouseup", handleMouseUp);
-
-    // Touch events
-    canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
-    canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
-    canvas.addEventListener("touchend", handleTouchEnd, { passive: false });
-
-    return () => {
-      canvas.removeEventListener("wheel", handleWheel);
-      canvas.removeEventListener("mousedown", handleMouseDown);
-      document.removeEventListener("mousemove", handleMouseMove);
-      canvas.removeEventListener("mouseup", handleMouseUp);
-
-      // Touch events
-      canvas.removeEventListener("touchstart", handleTouchStart);
-      canvas.removeEventListener("touchmove", handleTouchMove);
-      canvas.removeEventListener("touchend", handleTouchEnd);
-    };
-  }, [
-    handleWheel,
-    handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd,
-  ]);
 
   // Update fullUniforms when uniforms change
   useEffect(() => {
@@ -458,7 +479,7 @@ export default function PendulumCanvas({
       canvas,
       canvasWidthPixels,
       canvasHeightPixels,
-      window.devicePixelRatio
+      window.devicePixelRatio,
     );
 
     glContext.current = initGL(canvas, fullUniforms);
@@ -494,22 +515,23 @@ export default function PendulumCanvas({
   const scheduleRenders = useCallback(
     (fullUniforms: ShaderUniforms): [number, NodeJS.Timeout] => {
       const { gl, program } = glContext.current!;
+      const canvas = canvasRef.current!;
 
       const animationFrame = requestAnimationFrame(() => {
         const scaleFactor = lowResScaleFactor;
         setUniforms(gl, program, downscaledUniforms(fullUniforms, scaleFactor));
         setCanvasSize(
-          canvasRef.current!,
+          canvas,
           fullUniforms.resolution[0],
           fullUniforms.resolution[1],
-          window.devicePixelRatio / scaleFactor
+          window.devicePixelRatio / scaleFactor,
         );
 
         setViewport(
           gl,
           fullUniforms.resolution[0],
           fullUniforms.resolution[1],
-          window.devicePixelRatio / scaleFactor
+          window.devicePixelRatio / scaleFactor,
         );
 
         render();
@@ -519,17 +541,17 @@ export default function PendulumCanvas({
         animationFrameRef.current = requestAnimationFrame(() => {
           setUniforms(gl, program, fullUniforms);
           setCanvasSize(
-            canvasRef.current!,
+            canvas,
             fullUniforms.resolution[0],
             fullUniforms.resolution[1],
-            window.devicePixelRatio
+            window.devicePixelRatio,
           );
 
           setViewport(
             gl,
             fullUniforms.resolution[0],
             fullUniforms.resolution[1],
-            window.devicePixelRatio
+            window.devicePixelRatio,
           );
 
           render();
@@ -538,7 +560,7 @@ export default function PendulumCanvas({
 
       return [animationFrame, fullResRenderTimeout];
     },
-    [render, lowResScaleFactor]
+    [render, lowResScaleFactor],
   );
 
   // Re-render when fullUniforms changes
@@ -580,9 +602,7 @@ export default function PendulumCanvas({
     params.set("center", center.join(","));
     params.set("clickedAngles", clickedAngles?.join(",") ?? "");
 
-    const url = `${window.location.origin}${
-      window.location.pathname
-    }?${params.toString()}`;
+    const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
     navigator.clipboard.writeText(url);
   }, [uniforms, size, center, clickedAngles]);
 
