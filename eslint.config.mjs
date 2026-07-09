@@ -1,16 +1,12 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    ignores: [".next/**", "node_modules/**", "next-env.d.ts"],
+  },
+  ...nextCoreWebVitals,
+  ...nextTypescript,
   {
     plugins: {
       import: (await import("eslint-plugin-import")).default,
@@ -67,6 +63,11 @@ const eslintConfig = [
       ],
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
+      // eslint-config-next 16 newly enables these stricter react-hooks rules.
+      // They flag existing intentional patterns in the WebGL canvas; kept as
+      // warnings so lint stays green until the render code is revisited.
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/refs": "warn",
     },
   },
 ];
