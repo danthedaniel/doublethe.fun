@@ -8,7 +8,6 @@ import {
   ShaderUniforms,
   PendulumRenderer,
   FULL_RES_STEPS_PER_CHUNK,
-  LOW_RES_STEPS_PER_CHUNK,
 } from "~/utils/pendulumRenderer";
 import DoublePendulum from "./DoublePendulum";
 import InfoButton from "./InfoButton";
@@ -488,12 +487,12 @@ export default function PendulumCanvas({
       fullUniforms.pixelRatio,
     );
 
-    // Low resolution renders progressively so panning and zooming stay
-    // responsive.
+    // Low resolution renders every step in a single chunk so panning and
+    // zooming show the final image right away instead of an early iteration.
     renderer.startRender(fullUniforms, {
       scaleFactor: lowResScaleFactor,
-      stepsPerChunk: LOW_RES_STEPS_PER_CHUNK,
-      progressive: true,
+      stepsPerChunk: fullUniforms.stepCount,
+      progressive: false,
     });
 
     const fullResRenderTimeout = setTimeout(() => {

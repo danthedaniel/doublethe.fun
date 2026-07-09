@@ -5,8 +5,7 @@ import stepFragmentSource from "./shaders/step.frag";
 
 // Simulation steps advanced per draw call before yielding back to the event
 // loop. Smaller chunks keep the page responsive during a render.
-export const FULL_RES_STEPS_PER_CHUNK = 25;
-export const LOW_RES_STEPS_PER_CHUNK = 1000;
+export const FULL_RES_STEPS_PER_CHUNK = 10;
 
 export interface ShaderUniforms {
   resolution: [number, number];
