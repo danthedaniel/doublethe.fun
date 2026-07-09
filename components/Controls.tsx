@@ -11,6 +11,7 @@ interface ControlsProps {
   setUniforms: (uniforms: InputUniforms) => void;
   lowResScaleFactor: number;
   setLowResScaleFactor: (lowResScaleFactor: number) => void;
+  onAdjustStart?: () => void;
 }
 
 interface SliderProps {
@@ -23,6 +24,7 @@ interface SliderProps {
   hideInput?: boolean;
   reverse?: boolean;
   onChange: (value: number) => void;
+  onAdjustStart?: () => void;
 }
 
 function Slider({
@@ -35,6 +37,7 @@ function Slider({
   hideInput,
   reverse,
   onChange,
+  onAdjustStart,
 }: SliderProps) {
   const [inputValue, setInputValue] = useState(value.toFixed(precision));
 
@@ -88,6 +91,7 @@ function Slider({
         max={max}
         step={step}
         value={value}
+        onPointerDown={onAdjustStart}
         onChange={(e) => onChange(Number(e.target.value))}
         className={classNames(
           "w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer",
@@ -104,6 +108,7 @@ function ControlsContent({
   setUniforms,
   lowResScaleFactor,
   setLowResScaleFactor,
+  onAdjustStart,
 }: ControlsProps) {
   return (
     <>
@@ -115,6 +120,7 @@ function ControlsContent({
         step={1}
         precision={0}
         onChange={(value) => setLowResScaleFactor(value)}
+        onAdjustStart={onAdjustStart}
         reverse={true}
         hideInput={true}
       />
@@ -127,6 +133,7 @@ function ControlsContent({
         step={1}
         precision={0}
         onChange={(value) => setUniforms({ ...uniforms, stepCount: value })}
+        onAdjustStart={onAdjustStart}
       />
 
       <Slider
@@ -137,6 +144,7 @@ function ControlsContent({
         step={0.01}
         precision={2}
         onChange={(value) => setUniforms({ ...uniforms, gravity: value })}
+        onAdjustStart={onAdjustStart}
       />
 
       <h3 className="text-md font-medium text-gray-700 mb-3 border-b border-gray-200 pb-1">
@@ -155,6 +163,7 @@ function ControlsContent({
             pendulumLengths: [value, uniforms.pendulumLengths[1]],
           })
         }
+        onAdjustStart={onAdjustStart}
       />
       <Slider
         label="Mass"
@@ -169,6 +178,7 @@ function ControlsContent({
             pendulumMasses: [value, uniforms.pendulumMasses[1]],
           })
         }
+        onAdjustStart={onAdjustStart}
       />
 
       <h3 className="text-md font-medium text-gray-700 mb-3 border-b border-gray-200 pb-1">
@@ -187,6 +197,7 @@ function ControlsContent({
             pendulumLengths: [uniforms.pendulumLengths[0], value],
           })
         }
+        onAdjustStart={onAdjustStart}
       />
       <Slider
         label="Mass"
@@ -201,6 +212,7 @@ function ControlsContent({
             pendulumMasses: [uniforms.pendulumMasses[0], value],
           })
         }
+        onAdjustStart={onAdjustStart}
       />
     </>
   );
@@ -214,6 +226,23 @@ export default function Controls({
 }: ControlsProps) {
   // Default to collapsed on small screens, expanded on md+ screens
   const [isCollapsed, setIsCollapsed] = useState(true);
+
+  // Track when a control is being actively dragged, so the mobile panel can
+  // fade its background out and reveal the pendulum behind it.
+  const [isAdjusting, setIsAdjusting] = useState(false);
+
+  useEffect(() => {
+    if (!isAdjusting) return;
+
+    const stop = () => setIsAdjusting(false);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+
+    return () => {
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+    };
+  }, [isAdjusting]);
 
   // Check if we're on a small screen and adjust default collapsed state
   useEffect(() => {
@@ -250,9 +279,21 @@ export default function Controls({
         </div>
 
         {!isCollapsed && (
-          <div className="fixed inset-0 bg-white z-50 overflow-y-auto">
+          <div
+             className={classNames(
+              "fixed inset-0 z-50 overflow-y-auto transition-colors duration-300",
+              isAdjusting ? "bg-white/50" : "bg-white"
+            )}
+          >
             {/* Sticky header in expanded state */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 z-10">
+            <div
+              className={classNames(
+                "sticky top-0 border-b z-10 transition-colors duration-300",
+                isAdjusting
+                  ? "bg-white/50 border-transparent"
+                  : "bg-white border-gray-200"
+              )}
+            >
               <div
                 className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={() => setIsCollapsed(true)}
@@ -269,6 +310,7 @@ export default function Controls({
                 setUniforms={setUniforms}
                 lowResScaleFactor={lowResScaleFactor}
                 setLowResScaleFactor={setLowResScaleFactor}
+                onAdjustStart={() => setIsAdjusting(true)}
               />
             </div>
           </div>
@@ -276,7 +318,7 @@ export default function Controls({
       </div>
 
       {/* Desktop version */}
-      <div className="hidden md:block absolute top-4 left-4 bg-white/90 hover:bg-white backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+      <div className="hidden md:block absolute top-4 left-4 bg-white/40 hover:bg-white backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 transition-colors duration-300 overflow-hidden">
         {/* Header with toggle button */}
         <div
           className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50/50 transition-colors"
