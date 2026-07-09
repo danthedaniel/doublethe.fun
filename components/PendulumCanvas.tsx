@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useWindowSize } from "~/hooks/useWindowSize";
 import { parseCanvasParams } from "~/utils/paramParser";
 import {
   ShaderUniforms,
@@ -24,15 +23,19 @@ function setCanvasSize(
   height: number,
   pixelRatio: number,
 ) {
+  // Only the drawing buffer is sized here; the display size is left to CSS
+  // (`w-full h-full`) so the canvas exactly fills its layout box and can never
+  // overflow the viewport.
+  const bufferWidth = Math.round(width * pixelRatio);
+  const bufferHeight = Math.round(height * pixelRatio);
+
   // Assigning width/height clears the canvas, so only resize when needed.
-  if (canvas.width === width * pixelRatio && canvas.height === height * pixelRatio) {
+  if (canvas.width === bufferWidth && canvas.height === bufferHeight) {
     return;
   }
 
-  canvas.width = width * pixelRatio;
-  canvas.height = height * pixelRatio;
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
+  canvas.width = bufferWidth;
+  canvas.height = bufferHeight;
 }
 
 // Helper function to get touch distance
@@ -75,7 +78,6 @@ export default function PendulumCanvas({
   uniforms,
 }: PendulumCanvasProps) {
   const searchParams = useSearchParams();
-  const windowSize = useWindowSize();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<PendulumRenderer | null>(null);
@@ -446,17 +448,34 @@ export default function PendulumCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(uniforms), size, center, canvasRef.current]);
 
-  // Update fullUniforms when window size changes
+  // Update fullUniforms when the canvas's layout box changes size. Reading the
+  // canvas's own client size (rather than the window's) keeps the resolution in
+  // sync with what CSS actually lays out, so the canvas never overflows.
   useEffect(() => {
-    setFullUniforms((prev) => {
-      if (!prev) return null;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-      return {
-        ...prev,
-        resolution: [windowSize.width, windowSize.height],
-      };
-    });
-  }, [windowSize.width, windowSize.height]);
+    const updateResolution = () => {
+      setFullUniforms((prev) => {
+        if (!prev) return prev;
+        if (
+          prev.resolution[0] === canvas.clientWidth &&
+          prev.resolution[1] === canvas.clientHeight
+        ) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          resolution: [canvas.clientWidth, canvas.clientHeight],
+        };
+      });
+    };
+
+    const observer = new ResizeObserver(updateResolution);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
 
   // Setup the WebGL renderer
   useEffect(() => {

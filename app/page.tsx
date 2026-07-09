@@ -46,7 +46,7 @@ function Visualizer() {
   }, [router]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen w-screen pt-15 md:pt-0">
+    <div className="flex flex-col items-center justify-center h-screen w-full pt-15 md:pt-0">
       <PendulumCanvas
         lowResScaleFactor={lowResScaleFactor}
         uniforms={uniforms}
