@@ -1,48 +1,21 @@
 #version 300 es
 
-precision mediump float;
+precision highp float;
 
-uniform vec2 u_resolution; // Canvas resolution
-uniform float u_pixel_ratio; // Pixel ratio
-uniform vec2 u_size; // Size of angle space
-uniform vec2 u_center; // Center in angle space
+uniform sampler2D u_reference_state;
+uniform sampler2D u_adjacent_state;
 uniform float u_gravity; // Acceleration due to gravity (m/s^2)
 uniform vec2 u_pendulum_lengths;
 uniform vec2 u_pendulum_masses;
-uniform float u_step_count;
+uniform int u_steps; // Simulation steps to advance this pass
 
-// Output color
-out vec4 fragColor;
+// State layout: angle1, momentum1, angle2, momentum2
+layout(location = 0) out vec4 referenceState;
+layout(location = 1) out vec4 adjacentState;
 
-const float PI = 3.14159265358979323846;
 const float TIME_STEP = 0.03; // seconds
-const float EPSILON = 0.0001;
 
-struct PendulumPair {
-    vec4 a; // length, mass, angle, momentum
-    vec4 b; // length, mass, angle, momentum
-};
-
-PendulumPair pendulums(vec2 angles) {
-    PendulumPair pair;
-
-    pair.a.x = u_pendulum_lengths.x;
-    pair.a.y = u_pendulum_masses.x;
-    pair.a.z = angles.x;
-    pair.a.w = 0.0;
-
-    pair.b.x = u_pendulum_lengths.y;
-    pair.b.y = u_pendulum_masses.y;
-    pair.b.z = angles.y;
-    pair.b.w = 0.0;
-
-    return pair;
-}
-
-vec2 pendulumAngles(PendulumPair pair) {
-    return vec2(pair.a.z, pair.b.z);
-}
-
+// Pendulum layout: length, mass, angle, momentum
 vec4 derivative(vec4 a, vec4 b) {
     float cosDiff = cos(a.z - b.z);
     float sinDiff = sin(a.z - b.z);
@@ -125,34 +98,21 @@ void simulateTimeStep(inout vec4 a, inout vec4 b) {
     b.w = b.w + (k1dp2 + 2.0 * k2dp2 + 2.0 * k3dp2 + k4dp2) * (TIME_STEP / 6.0);
 }
 
-vec3 hsv2rgb(vec3 c) {
-    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-}
-
 void main() {
-    // Normalize coordinates to -0.5..0.5
-    vec2 uv = gl_FragCoord.xy / (u_resolution.xy * vec2(u_pixel_ratio)) - vec2(0.5);
+    ivec2 texel = ivec2(gl_FragCoord.xy);
+    vec4 reference = texelFetch(u_reference_state, texel, 0);
+    vec4 adjacent = texelFetch(u_adjacent_state, texel, 0);
 
-    PendulumPair referencePendulums = pendulums(uv * u_size + u_center);
-    PendulumPair adjacentPendulums = pendulums(uv * u_size + u_center + vec2(EPSILON));
+    vec4 referenceA = vec4(u_pendulum_lengths.x, u_pendulum_masses.x, reference.x, reference.y);
+    vec4 referenceB = vec4(u_pendulum_lengths.y, u_pendulum_masses.y, reference.z, reference.w);
+    vec4 adjacentA = vec4(u_pendulum_lengths.x, u_pendulum_masses.x, adjacent.x, adjacent.y);
+    vec4 adjacentB = vec4(u_pendulum_lengths.y, u_pendulum_masses.y, adjacent.z, adjacent.w);
 
-    for (float i = 0.0; i < u_step_count; i++) {
-        simulateTimeStep(referencePendulums.a, referencePendulums.b);
-        simulateTimeStep(adjacentPendulums.a, adjacentPendulums.b);
+    for (int i = 0; i < u_steps; i++) {
+        simulateTimeStep(referenceA, referenceB);
+        simulateTimeStep(adjacentA, adjacentB);
     }
 
-    vec2 angleDifferences = abs(
-        pendulumAngles(referencePendulums) -
-        pendulumAngles(adjacentPendulums)
-    );
-    vec2 normalizedAngleDifferences = normalize(angleDifferences);
-
-    float hue = atan(normalizedAngleDifferences.y, normalizedAngleDifferences.x) + 0.5;
-    float saturation = 0.9;
-    float value = (angleDifferences.x + angleDifferences.y) / (2.0 * 2.0 * PI);
-    vec3 color = hsv2rgb(vec3(hue, saturation, value));
-
-    fragColor = vec4(color, 1.0);
+    referenceState = vec4(referenceA.z, referenceA.w, referenceB.z, referenceB.w);
+    adjacentState = vec4(adjacentA.z, adjacentA.w, adjacentB.z, adjacentB.w);
 }

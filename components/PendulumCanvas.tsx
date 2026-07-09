@@ -6,16 +6,18 @@ import { useWindowSize } from "~/hooks/useWindowSize";
 import { parseCanvasParams } from "~/utils/paramParser";
 import {
   ShaderUniforms,
-  GLContext,
-  initGL,
-  setUniforms,
-  downscaledUniforms,
-  setViewport,
-} from "~/utils/webgl";
+  PendulumRenderer,
+  FULL_RES_STEPS_PER_CHUNK,
+  LOW_RES_STEPS_PER_CHUNK,
+} from "~/utils/pendulumRenderer";
 import DoublePendulum from "./DoublePendulum";
 import InfoButton from "./InfoButton";
 import PendulumAudio from "./PendulumAudio";
 import ShareButton from "./ShareButton";
+
+// Delay after the last parameter change before the full resolution render
+// starts.
+const FULL_RES_DELAY_MS = 500;
 
 function setCanvasSize(
   canvas: HTMLCanvasElement,
@@ -23,6 +25,11 @@ function setCanvasSize(
   height: number,
   pixelRatio: number,
 ) {
+  // Assigning width/height clears the canvas, so only resize when needed.
+  if (canvas.width === width * pixelRatio && canvas.height === height * pixelRatio) {
+    return;
+  }
+
   canvas.width = width * pixelRatio;
   canvas.height = height * pixelRatio;
   canvas.style.width = `${width}px`;
@@ -71,12 +78,11 @@ export default function PendulumCanvas({
   const searchParams = useSearchParams();
   const windowSize = useWindowSize();
 
-  const animationFrameRef = useRef<number | null>(null);
-  const fullRenderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const glContext = useRef<GLContext | null>(null);
+  const rendererRef = useRef<PendulumRenderer | null>(null);
 
   const [fullUniforms, setFullUniforms] = useState<ShaderUniforms | null>(null);
+  const [fullResProgress, setFullResProgress] = useState<number | null>(null);
   // prettier-ignore
   const [size, setSize] = useState<[number, number]>([2 * Math.PI, 2 * Math.PI]);
   const [center, setCenter] = useState<[number, number]>([0, 0]);
@@ -94,19 +100,6 @@ export default function PendulumCanvas({
   const [wasTouched, setWasTouched] = useState(false);
   const [lastTouchPos, setLastTouchPos] = useState<[number, number]>([0, 0]);
   const [lastTouchDistance, setLastTouchDistance] = useState<number>(0);
-
-  const render = useCallback(() => {
-    if (!glContext.current) return;
-
-    const { gl, vao } = glContext.current;
-
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.bindVertexArray(vao);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-    animationFrameRef.current = null;
-  }, []);
 
   // Handle mouse wheel for zooming
   const handleWheel = useCallback(
@@ -466,127 +459,62 @@ export default function PendulumCanvas({
     });
   }, [windowSize.width, windowSize.height]);
 
-  // Setup WebGL context
+  // Setup the WebGL renderer
   useEffect(() => {
-    if (!fullUniforms) return;
-
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const canvasWidthPixels = canvas.clientWidth;
-    const canvasHeightPixels = canvas.clientHeight;
+    const renderer = PendulumRenderer.create(canvas);
+    rendererRef.current = renderer;
+
+    return () => {
+      renderer?.dispose();
+      rendererRef.current = null;
+    };
+  }, []);
+
+  // Render when fullUniforms changes: start an iterative low resolution
+  // render right away, then an iterative full resolution render once the
+  // parameters have settled. Any change cancels the renders in flight.
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const canvas = canvasRef.current;
+    if (!renderer || !canvas || !fullUniforms) return;
+
     setCanvasSize(
       canvas,
-      canvasWidthPixels,
-      canvasHeightPixels,
-      window.devicePixelRatio,
+      fullUniforms.resolution[0],
+      fullUniforms.resolution[1],
+      fullUniforms.pixelRatio,
     );
 
-    glContext.current = initGL(canvas, fullUniforms);
-    if (!glContext.current) return;
+    // Low resolution renders progressively so panning and zooming stay
+    // responsive.
+    renderer.startRender(fullUniforms, {
+      scaleFactor: lowResScaleFactor,
+      stepsPerChunk: LOW_RES_STEPS_PER_CHUNK,
+      progressive: true,
+    });
 
-    animationFrameRef.current = requestAnimationFrame(() => render());
-
-    return () => {
-      if (!glContext.current) return;
-
-      const { gl, program, vao, vertexShader, fragmentShader, positionBuffer } =
-        glContext.current;
-
-      // Clean up WebGL resources
-      try {
-        if (program) gl.deleteProgram(program);
-        if (vertexShader) gl.deleteShader(vertexShader);
-        if (fragmentShader) gl.deleteShader(fragmentShader);
-        if (positionBuffer) gl.deleteBuffer(positionBuffer);
-        if (vao) gl.deleteVertexArray(vao);
-      } catch (e) {
-        // Ignore cleanup errors
-        console.error(e);
-      }
-
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [render, fullUniforms === null]);
-
-  const scheduleRenders = useCallback(
-    (fullUniforms: ShaderUniforms): [number, NodeJS.Timeout] => {
-      const { gl, program } = glContext.current!;
-      const canvas = canvasRef.current!;
-
-      const animationFrame = requestAnimationFrame(() => {
-        const scaleFactor = lowResScaleFactor;
-        setUniforms(gl, program, downscaledUniforms(fullUniforms, scaleFactor));
-        setCanvasSize(
-          canvas,
-          fullUniforms.resolution[0],
-          fullUniforms.resolution[1],
-          window.devicePixelRatio / scaleFactor,
-        );
-
-        setViewport(
-          gl,
-          fullUniforms.resolution[0],
-          fullUniforms.resolution[1],
-          window.devicePixelRatio / scaleFactor,
-        );
-
-        render();
+    const fullResRenderTimeout = setTimeout(() => {
+      // The full resolution render keeps the low resolution image on screen
+      // until it completes; the progress bar tracks it in the meantime.
+      renderer.startRender(fullUniforms, {
+        scaleFactor: 1,
+        stepsPerChunk: FULL_RES_STEPS_PER_CHUNK,
+        progressive: false,
+        onProgress: setFullResProgress,
+        onComplete: () => setFullResProgress(null),
       });
-
-      const fullResRenderTimeout = setTimeout(() => {
-        animationFrameRef.current = requestAnimationFrame(() => {
-          setUniforms(gl, program, fullUniforms);
-          setCanvasSize(
-            canvas,
-            fullUniforms.resolution[0],
-            fullUniforms.resolution[1],
-            window.devicePixelRatio,
-          );
-
-          setViewport(
-            gl,
-            fullUniforms.resolution[0],
-            fullUniforms.resolution[1],
-            window.devicePixelRatio,
-          );
-
-          render();
-        });
-      }, 500);
-
-      return [animationFrame, fullResRenderTimeout];
-    },
-    [render, lowResScaleFactor],
-  );
-
-  // Re-render when fullUniforms changes
-  useEffect(() => {
-    if (!glContext) return;
-    if (!fullUniforms) return;
-    if (!canvasRef.current) return;
-
-    const [animationFrame, fullResRenderTimeout] =
-      scheduleRenders(fullUniforms);
-    animationFrameRef.current = animationFrame;
-    fullRenderTimeoutRef.current = fullResRenderTimeout;
+    }, FULL_RES_DELAY_MS);
 
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-
-      if (fullRenderTimeoutRef.current) {
-        clearTimeout(fullRenderTimeoutRef.current);
-        fullRenderTimeoutRef.current = null;
-      }
+      clearTimeout(fullResRenderTimeout);
+      renderer.cancelRender();
+      setFullResProgress(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(fullUniforms), scheduleRenders]);
+  }, [JSON.stringify(fullUniforms), lowResScaleFactor]);
 
   const handleRemove = useCallback(() => {
     setClickedAngles(null);
@@ -625,6 +553,20 @@ export default function PendulumCanvas({
           imageRendering: "pixelated",
         }}
       />
+      {fullResProgress !== null && (
+        <div
+          className="pointer-events-none fixed bottom-0 left-0 h-1 w-full bg-black/50"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(fullResProgress * 100)}
+        >
+          <div
+            className="h-full bg-white/90"
+            style={{ width: `${fullResProgress * 100}%` }}
+          />
+        </div>
+      )}
       {clickedAngles && (
         <>
           <DoublePendulum
