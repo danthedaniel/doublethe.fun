@@ -1,17 +1,13 @@
-"use client";
-
-import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import Controls from "~/components/Controls";
 import PendulumCanvas, { InputUniforms } from "~/components/PendulumCanvas";
+import { initialSearchParams } from "~/utils/initialSearchParams";
 import { parseInputUniforms } from "~/utils/paramParser";
 
 function getLowResScaleFactor() {
-  if (typeof window !== "undefined") {
-    const lowResScaleFactor = localStorage.getItem("lowResScaleFactor");
-    if (lowResScaleFactor) {
-      return parseInt(lowResScaleFactor);
-    }
+  const lowResScaleFactor = localStorage.getItem("lowResScaleFactor");
+  if (lowResScaleFactor) {
+    return parseInt(lowResScaleFactor);
   }
 
   return 10;
@@ -24,12 +20,11 @@ const defaultUniforms: InputUniforms = {
   stepCount: 800,
 };
 
-function Visualizer() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
+export default function App() {
   const [lowResScaleFactor, setLowResScaleFactorInner] = useState(getLowResScaleFactor());
-  const [uniforms, setUniforms] = useState<InputUniforms>(parseInputUniforms(searchParams) ?? defaultUniforms);
+  const [uniforms, setUniforms] = useState<InputUniforms>(
+    parseInputUniforms(initialSearchParams) ?? defaultUniforms,
+  );
 
   const setLowResScaleFactor = useCallback((lowResScaleFactor: number) => {
     localStorage.setItem("lowResScaleFactor", lowResScaleFactor.toString());
@@ -42,8 +37,8 @@ function Visualizer() {
 
   // Clear URL parameters after load
   useEffect(() => {
-    router.replace("/", { scroll: false });
-  }, [router]);
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center h-screen w-full pt-15 md:pt-0">
@@ -58,21 +53,5 @@ function Visualizer() {
         setLowResScaleFactor={setLowResScaleFactor}
       />
     </div>
-  );
-}
-
-function Loading() {
-  return (
-    <div className="w-full h-full flex items-center justify-center text-center text-gray-500">
-      Loading...
-    </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <Suspense fallback={<Loading />}>
-      <Visualizer />
-    </Suspense>
   );
 }

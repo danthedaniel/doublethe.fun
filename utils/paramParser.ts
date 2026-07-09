@@ -1,4 +1,3 @@
-import { ReadonlyURLSearchParams } from "next/navigation";
 import { InputUniforms } from "~/components/PendulumCanvas";
 
 function parseNumber(value: string | null) {
@@ -23,7 +22,7 @@ function parseTuple(value: string | null): [number, number] | null {
   return [a, b];
 }
 
-export function parseInputUniforms(params: ReadonlyURLSearchParams): InputUniforms | null {
+export function parseInputUniforms(params: URLSearchParams): InputUniforms | null {
   const gravity = parseNumber(params.get("gravity"));
   if (gravity === null) {
     return null;
@@ -58,7 +57,7 @@ interface CanvasParams {
   clickedAngles: [number, number] | null;
 }
 
-export function parseCanvasParams(params: ReadonlyURLSearchParams): CanvasParams | null {
+export function parseCanvasParams(params: URLSearchParams): CanvasParams | null {
   const size = parseTuple(params.get("size"));
   if (size === null) {
     return null;

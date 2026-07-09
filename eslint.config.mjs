@@ -1,15 +1,25 @@
-import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
-import nextTypescript from "eslint-config-next/typescript";
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
+import reactHooks from "eslint-plugin-react-hooks";
+import importPlugin from "eslint-plugin-import";
+import globals from "globals";
 
-const eslintConfig = [
+export default tseslint.config(
   {
-    ignores: [".next/**", "node_modules/**", "next-env.d.ts"],
+    ignores: ["dist/**", "node_modules/**"],
   },
-  ...nextCoreWebVitals,
-  ...nextTypescript,
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
     plugins: {
-      import: (await import("eslint-plugin-import")).default,
+      "react-hooks": reactHooks,
+      import: importPlugin,
     },
     settings: {
       "import/resolver": {
@@ -23,6 +33,7 @@ const eslintConfig = [
       },
     },
     rules: {
+      ...reactHooks.configs.recommended.rules,
       // Import sorting rules
       "import/order": [
         "error",
@@ -35,16 +46,11 @@ const eslintConfig = [
             "sibling",
             "index",
             "object",
-            "type"
+            "type",
           ],
           pathGroups: [
             {
               pattern: "react",
-              group: "external",
-              position: "before",
-            },
-            {
-              pattern: "next/**",
               group: "external",
               position: "before",
             },
@@ -63,13 +69,10 @@ const eslintConfig = [
       ],
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
-      // eslint-config-next 16 newly enables these stricter react-hooks rules.
-      // They flag existing intentional patterns in the WebGL canvas; kept as
-      // warnings so lint stays green until the render code is revisited.
+      // These flag intentional patterns in the WebGL canvas; kept as warnings
+      // so lint stays green until the render code is revisited.
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/refs": "warn",
     },
   },
-];
-
-export default eslintConfig;
+);

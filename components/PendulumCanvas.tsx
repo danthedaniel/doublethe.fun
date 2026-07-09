@@ -1,7 +1,5 @@
-"use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { initialSearchParams } from "~/utils/initialSearchParams";
 import { parseCanvasParams } from "~/utils/paramParser";
 import {
   ShaderUniforms,
@@ -16,6 +14,11 @@ import ShareButton from "./ShareButton";
 // Delay after the last parameter change before the full resolution render
 // starts.
 const FULL_RES_DELAY_MS = 500;
+
+// Initial view (size/center/clicked pendulum) decoded once from the URL the
+// page was opened with. Parsed at module load so it can seed component state
+// directly instead of being applied in a mount effect.
+const initialCanvasParams = parseCanvasParams(initialSearchParams);
 
 function setCanvasSize(
   canvas: HTMLCanvasElement,
@@ -77,23 +80,21 @@ export default function PendulumCanvas({
   lowResScaleFactor,
   uniforms,
 }: PendulumCanvasProps) {
-  const searchParams = useSearchParams();
-
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<PendulumRenderer | null>(null);
 
   const [fullUniforms, setFullUniforms] = useState<ShaderUniforms | null>(null);
   const [fullResProgress, setFullResProgress] = useState<number | null>(null);
   // prettier-ignore
-  const [size, setSize] = useState<[number, number]>([2 * Math.PI, 2 * Math.PI]);
-  const [center, setCenter] = useState<[number, number]>([0, 0]);
+  const [size, setSize] = useState<[number, number]>(initialCanvasParams?.size ?? [2 * Math.PI, 2 * Math.PI]);
+  const [center, setCenter] = useState<[number, number]>(initialCanvasParams?.center ?? [0, 0]);
 
   // Mouse state
   const [isDragging, setIsDragging] = useState(false);
   const [wasDragged, setWasDragged] = useState(false);
   const [lastMousePos, setLastMousePos] = useState<[number, number]>([0, 0]);
   const [clickedAngles, setClickedAngles] = useState<[number, number] | null>(
-    null,
+    initialCanvasParams?.clickedAngles ?? null,
   );
 
   // Touch state
@@ -265,12 +266,13 @@ export default function PendulumCanvas({
         setIsTouching(true);
         setLastTouchPos([e.touches[0].clientX, e.touches[0].clientY]);
         break;
-      case 2:
+      case 2: {
         // Two fingers - start pinch zoom
         setIsTouching(true);
         const distance = getTouchDistance(e.touches);
         setLastTouchDistance(distance);
         break;
+      }
     }
   }, []);
   useEffect(() => {
@@ -411,18 +413,6 @@ export default function PendulumCanvas({
     return () => canvas.removeEventListener("touchend", handleTouchEnd);
   }, [handleTouchEnd]);
 
-  useEffect(() => {
-    const canvasParams = parseCanvasParams(searchParams);
-    if (!canvasParams) {
-      return;
-    }
-
-    setSize(canvasParams.size);
-    setCenter(canvasParams.center);
-    setClickedAngles(canvasParams.clickedAngles);
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, []);
-
   // Change cursor on drag
   useEffect(() => {
     document.body.style.cursor =
@@ -431,22 +421,21 @@ export default function PendulumCanvas({
         : "default";
   }, [isDragging, wasDragged, isTouching, wasTouched]);
 
-  // Update fullUniforms when uniforms change
+  // Update fullUniforms when uniforms change. The canvas is always rendered, so
+  // its ref is populated by the time this effect first runs after mount.
   useEffect(() => {
-    if (!canvasRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
     setFullUniforms({
       ...uniforms,
       size,
       center,
       pixelRatio: window.devicePixelRatio,
-      resolution: [
-        canvasRef.current.clientWidth,
-        canvasRef.current.clientHeight,
-      ],
+      resolution: [canvas.clientWidth, canvas.clientHeight],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(uniforms), size, center, canvasRef.current]);
+  }, [JSON.stringify(uniforms), size, center]);
 
   // Update fullUniforms when the canvas's layout box changes size. Reading the
   // canvas's own client size (rather than the window's) keeps the resolution in

@@ -1,7 +1,7 @@
-import displayFragmentSource from "./shaders/display.frag";
-import initFragmentSource from "./shaders/init.frag";
-import quadVertexSource from "./shaders/quad.vert";
-import stepFragmentSource from "./shaders/step.frag";
+import displayFragmentSource from "./shaders/display.frag?raw";
+import initFragmentSource from "./shaders/init.frag?raw";
+import quadVertexSource from "./shaders/quad.vert?raw";
+import stepFragmentSource from "./shaders/step.frag?raw";
 
 // Simulation steps advanced per draw call before yielding back to the event
 // loop. Smaller chunks keep the page responsive during a render.

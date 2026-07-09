@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { classNames } from "~/utils/classNames";
@@ -39,12 +37,17 @@ function Slider({
   onChange,
   onAdjustStart,
 }: SliderProps) {
-  const [inputValue, setInputValue] = useState(value.toFixed(precision));
+  const formattedValue = value.toFixed(precision);
+  const [inputValue, setInputValue] = useState(formattedValue);
 
-  // Update input value when slider value changes
-  useEffect(() => {
-    setInputValue(value.toFixed(precision));
-  }, [value, precision]);
+  // Reflect external value/precision changes in the editable text field. Done
+  // during render (tracking the previous formatted value) rather than in an
+  // effect, so the field never briefly shows a stale value.
+  const [lastFormattedValue, setLastFormattedValue] = useState(formattedValue);
+  if (formattedValue !== lastFormattedValue) {
+    setLastFormattedValue(formattedValue);
+    setInputValue(formattedValue);
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
