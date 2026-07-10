@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import { useEffect, useState } from "react";
 import { classNames } from "~/utils/classNames";
 import styles from "./Controls.module.css";
-import { InputUniforms } from "./PendulumCanvas";
+import type { InputUniforms } from "./PendulumCanvas";
 
 interface ControlsProps {
   uniforms: InputUniforms;
@@ -55,7 +55,7 @@ function Slider({
 
   const handleInputBlur = () => {
     const numValue = parseFloat(inputValue);
-    if (isNaN(numValue)) {
+    if (Number.isNaN(numValue)) {
       setInputValue(value.toFixed(precision));
       return;
     }
@@ -76,7 +76,7 @@ function Slider({
   return (
     <div className="mb-4">
       <div className="flex justify-between items-center mb-2">
-        <label className="text-sm font-medium text-gray-700">{label}</label>
+        <span className="text-sm font-medium text-gray-700">{label}</span>
         {!hideInput && (
           <input
             type="text"

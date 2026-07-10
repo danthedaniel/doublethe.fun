@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWindowSize } from "~/hooks/useWindowSize";
-import { createPendulums, PendulumPair, PendulumSimulator } from "../utils/pendulumSimulation";
+import { createPendulums, type PendulumPair, PendulumSimulator } from "../utils/pendulumSimulation";
 
 const timeStep = 0.001;
 
@@ -19,9 +19,21 @@ const nodeStrokeWidth = 0.002;
 const lineWidth = 0.012;
 const lengthScale = 0.05;
 
+// Trailing path traced by the tip. It spans the last few seconds and fades out
+// with age, capped below full opacity so it always reads as translucent.
+const TRAIL_DURATION_MS = 3000;
+const MAX_TRAIL_OPACITY = 0.8;
+const trailWidth = 0.006;
+
 interface Coordinate {
   x: number;
   y: number;
+}
+
+interface TrailPoint {
+  x: number;
+  y: number;
+  t: number;
 }
 
 export default function DoublePendulum({
@@ -40,6 +52,7 @@ export default function DoublePendulum({
   const animationFrameRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
   const simulatorRef = useRef<PendulumSimulator | null>(null);
+  const trailRef = useRef<TrailPoint[]>([]);
   const [pendulums, setPendulums] = useState<PendulumPair | null>(null);
 
   const animate = useCallback(
@@ -85,6 +98,7 @@ export default function DoublePendulum({
       createPendulums([startingAngles[0], startingAngles[1]], lengthsProp, massesProp),
       gravity
     );
+    trailRef.current = [];
 
     animationFrameRef.current = requestAnimationFrame((timestamp) =>
       animationFuncRef?.current?.(timestamp)
@@ -97,7 +111,6 @@ export default function DoublePendulum({
 
       lastTimestampRef.current = null;
     };
-    /* eslint-disable react-hooks/exhaustive-deps */
   }, [
     gravity,
     startingAngles[0],
@@ -107,7 +120,6 @@ export default function DoublePendulum({
     massesProp[0],
     massesProp[1],
   ]);
-  /* eslint-enable react-hooks/exhaustive-deps */
 
   if (!pendulums) {
     return null;
@@ -146,6 +158,34 @@ export default function DoublePendulum({
     y: secondNode.y + pendulums[1].length * Math.sin(pendulums[1].angle + Math.PI / 2) * lengthScale * scale,
   };
 
+  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const trail = trailRef.current;
+  const lastTrailPoint = trail[trail.length - 1];
+  if (!lastTrailPoint || lastTrailPoint.x !== thirdNode.x || lastTrailPoint.y !== thirdNode.y) {
+    trail.push({ x: thirdNode.x, y: thirdNode.y, t: now });
+  }
+  while (trail.length > 0 && now - trail[0].t > TRAIL_DURATION_MS) {
+    trail.shift();
+  }
+
+  const trailSegments = [];
+  for (let i = 1; i < trail.length; i++) {
+    const opacity = MAX_TRAIL_OPACITY * (1 - (now - trail[i].t) / TRAIL_DURATION_MS);
+    if (opacity <= 0) continue;
+    trailSegments.push(
+      <path
+        key={i}
+        d={`M${trail[i - 1].x},${trail[i - 1].y}L${trail[i].x},${trail[i].y}`}
+        style={{
+          fill: "none",
+          stroke: "rgb(0,220,0)",
+          strokeOpacity: opacity,
+          strokeWidth: `${trailWidth * scale}px`,
+        }}
+      />
+    );
+  }
+
   return (
     <svg
       width="100vw"
@@ -165,6 +205,10 @@ export default function DoublePendulum({
         pointerEvents: "none",
       }}
     >
+      <title>Double pendulum</title>
+
+      {trailSegments}
+
       <path
         d={`M${firstNode.x},${firstNode.y}L${secondNode.x},${secondNode.y}`}
         style={{

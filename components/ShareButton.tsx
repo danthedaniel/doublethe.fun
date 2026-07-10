@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
 import { ShareIcon } from "@heroicons/react/24/outline";
+import { useCallback, useState } from "react";
 
 interface ShareButtonProps {
   onShare: () => void;
@@ -22,7 +22,7 @@ export default function ShareButton({ onShare }: ShareButtonProps) {
 
   return (
     <div className="relative">
-      <button onClick={handleClick} className="p-2 rounded-md text-slate-700 border border-gray-200 bg-white/90 hover:bg-white active:bg-gray-200 cursor-pointer">
+      <button type="button" onClick={handleClick} className="p-2 rounded-md text-slate-700 border border-gray-200 bg-white/90 hover:bg-white active:bg-gray-200 cursor-pointer">
         <ShareIcon className="w-6 h-6" />
       </button>
       {showTooltip && (

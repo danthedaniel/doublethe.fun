@@ -1,6 +1,6 @@
 import PendulumPairStage from "./PendulumPairStage";
 
-// A non-trivial stable region: differ by a few degrees yet track each other.
+// A non-trivial stable region: differ by a degree yet track each other.
 export default function TutorialStageThree() {
   return (
     <PendulumPairStage

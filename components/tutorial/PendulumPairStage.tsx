@@ -37,7 +37,7 @@ export default function PendulumPairStage({
 
       <div className="mx-auto grid w-full max-w-[min(48rem,58dvh)] grid-cols-2 gap-4 sm:gap-6">
         {sims.map(([first, second], index) => (
-          <div key={index} className="flex flex-col items-center gap-2">
+          <div key={`${first}-${second}`} className="flex flex-col items-center gap-2">
             <div className="w-full max-w-[240px]">
               <MiniPendulum pendulums={clock.states[index]} />
             </div>

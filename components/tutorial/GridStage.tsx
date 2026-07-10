@@ -101,13 +101,13 @@ export default function GridStage({
           {rows}
           {/* Bottom axis: angle1 (first pendulum) labels. */}
           <span />
-          {Array.from({ length: DISPLAY }, (_, i) => (
+          {Array.from({ length: DISPLAY }, (_, i) => baseAngles[0] + i * delta).map((angle) => (
             <span
-              key={i}
+              key={angle}
               className="pt-1 text-center font-mono text-xs font-bold"
               style={{ color: ANGLE1_COLOR, ...labelOutline }}
             >
-              {topDegrees(baseAngles[0] + i * delta)}°
+              {topDegrees(angle)}°
             </span>
           ))}
         </div>

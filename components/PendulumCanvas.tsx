@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { initialSearchParams } from "~/utils/initialSearchParams";
 import { parseCanvasParams } from "~/utils/paramParser";
 import {
-  ShaderUniforms,
-  PendulumRenderer,
   FULL_RES_STEPS_PER_CHUNK,
+  PendulumRenderer,
+  type ShaderUniforms,
 } from "~/utils/pendulumRenderer";
 import DoublePendulum from "./DoublePendulum";
 import InfoButton from "./InfoButton";
@@ -191,7 +191,6 @@ export default function PendulumCanvas({
       ];
       setClickedAngles(angles);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [scale, center[0], center[1]],
   );
 
@@ -432,6 +431,7 @@ export default function PendulumCanvas({
 
   // Update fullUniforms when uniforms change. The canvas is always rendered, so
   // its ref is populated by the time this effect first runs after mount.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deps intentionally key on JSON.stringify(uniforms) to compare by value, and on the individual tuple elements rather than the array identities.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -443,7 +443,6 @@ export default function PendulumCanvas({
       pixelRatio: window.devicePixelRatio,
       resolution: canvasResolution,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(uniforms), scale, canvasResolution[0], canvasResolution[1], center[0], center[1]]);
 
   // Update fullUniforms when the canvas's layout box changes size. Reading the
@@ -491,6 +490,7 @@ export default function PendulumCanvas({
   // Render when fullUniforms changes: start an iterative low resolution
   // render right away, then an iterative full resolution render once the
   // parameters have settled. Any change cancels the renders in flight.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deps intentionally key on JSON.stringify(fullUniforms) to compare by value; the render is driven only by that and lowResScaleFactor.
   useEffect(() => {
     const renderer = rendererRef.current;
     const canvas = canvasRef.current;
@@ -528,7 +528,6 @@ export default function PendulumCanvas({
       renderer.cancelRender();
       setFullResProgress(null);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(fullUniforms), lowResScaleFactor]);
 
   const handleRemove = useCallback(() => {

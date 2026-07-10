@@ -1,4 +1,4 @@
-import { InputUniforms } from "~/components/PendulumCanvas";
+import type { InputUniforms } from "~/components/PendulumCanvas";
 
 function parseNumber(value: string | null) {
   if (value === null) {
@@ -6,7 +6,7 @@ function parseNumber(value: string | null) {
   }
 
   const num = parseFloat(value);
-  return isNaN(num) ? null : num;
+  return Number.isNaN(num) ? null : num;
 }
 
 function parseTuple(value: string | null): [number, number] | null {

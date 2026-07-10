@@ -1,5 +1,5 @@
-import { useState, type ComponentType } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { type ComponentType, useState } from "react";
 import { useSwipe } from "~/hooks/useSwipe";
 import { classNames } from "~/utils/classNames";
 import TutorialStageFive from "./TutorialStageFive";
@@ -78,9 +78,9 @@ export default function Tutorial({ onDone }: TutorialProps) {
         </button>
 
         <div className="flex items-center gap-3">
-          {STAGES.map((_, index) => (
+          {STAGES.map((StageComponent, index) => (
             <button
-              key={index}
+              key={StageComponent.name}
               type="button"
               aria-label={`Step ${index + 1}`}
               aria-current={index === stageIndex}

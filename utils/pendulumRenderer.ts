@@ -103,6 +103,7 @@ function createProgram(
 }
 
 export class PendulumRenderer {
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: read via `const { gl } = this` destructuring, which this rule doesn't track.
   private gl: WebGL2RenderingContext;
   private initProgram: ProgramInfo;
   private stepProgram: ProgramInfo;
@@ -262,6 +263,7 @@ export class PendulumRenderer {
     const { gl } = this;
     const { program, uniforms: locations } = this.initProgram;
 
+    // biome-ignore lint/correctness/useHookAtTopLevel: gl.useProgram is a WebGL2 API call, not a React hook.
     gl.useProgram(program);
     gl.uniform2f(locations.u_sim_resolution, this.simSize[0], this.simSize[1]);
     gl.uniform2f(locations.u_size, uniforms.size[0], uniforms.size[1]);
@@ -280,6 +282,7 @@ export class PendulumRenderer {
     const source = this.targets[this.current];
     const destination = this.targets[1 - this.current];
 
+    // biome-ignore lint/correctness/useHookAtTopLevel: gl.useProgram is a WebGL2 API call, not a React hook.
     gl.useProgram(program);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, source.reference);
@@ -307,6 +310,7 @@ export class PendulumRenderer {
     const { program, uniforms: locations } = this.displayProgram;
     const source = this.targets[this.current];
 
+    // biome-ignore lint/correctness/useHookAtTopLevel: gl.useProgram is a WebGL2 API call, not a React hook.
     gl.useProgram(program);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, source.reference);

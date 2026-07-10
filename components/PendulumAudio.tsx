@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createPendulums,
-  PendulumPair,
+  type PendulumPair,
   PendulumSimulator,
 } from "../utils/pendulumSimulation";
 import MuteButton from "./MuteButton";
@@ -203,6 +203,7 @@ export default function PendulumAudio({
     [generateAudioChunk, isMuted],
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: effect intentionally re-runs only when the pendulum parameters change; playAudioChunk is derived from those and is deliberately omitted.
   useEffect(() => {
     simulatorRef.current = new PendulumSimulator(
       timeStep,
@@ -226,7 +227,6 @@ export default function PendulumAudio({
         audioContextRef.current = null;
       }
     };
-    /* eslint-disable react-hooks/exhaustive-deps */
   }, [
     startingAngles[0],
     startingAngles[1],
@@ -236,7 +236,6 @@ export default function PendulumAudio({
     masses[1],
     gravity,
   ]);
-  /* eslint-enable react-hooks/exhaustive-deps */
 
   return (
     <div className="absolute bottom-32 md:top-32 right-4">

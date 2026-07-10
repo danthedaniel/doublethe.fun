@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { defaultUniforms } from "~/utils/defaultUniforms";
 import {
   createPendulums,
-  PendulumPair,
+  type PendulumPair,
   PendulumSimulator,
 } from "~/utils/pendulumSimulation";
 

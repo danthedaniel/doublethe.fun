@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Controls from "~/components/Controls";
-import PendulumCanvas, { InputUniforms } from "~/components/PendulumCanvas";
+import PendulumCanvas, { type InputUniforms } from "~/components/PendulumCanvas";
 import Tutorial from "~/components/tutorial/Tutorial";
 import { defaultUniforms } from "~/utils/defaultUniforms";
 import { initialSearchParams } from "~/utils/initialSearchParams";
@@ -9,7 +9,7 @@ import { parseInputUniforms } from "~/utils/paramParser";
 function getLowResScaleFactor() {
   const lowResScaleFactor = localStorage.getItem("lowResScaleFactor");
   if (lowResScaleFactor) {
-    return parseInt(lowResScaleFactor);
+    return parseInt(lowResScaleFactor, 10);
   }
 
   return 10;

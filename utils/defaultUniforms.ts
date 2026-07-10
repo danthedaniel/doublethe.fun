@@ -1,4 +1,4 @@
-import { InputUniforms } from "~/components/PendulumCanvas";
+import type { InputUniforms } from "~/components/PendulumCanvas";
 
 export const defaultUniforms: InputUniforms = {
   gravity: 9.81,
