@@ -75,6 +75,10 @@ function getTouchCenter(touches: TouchList): [number, number] {
   ];
 }
 
+function clampScale(value: number): number {
+  return Math.max(Math.min(value, 10 * Math.PI), 0.00004);
+}
+
 export type InputUniforms = Omit<
   ShaderUniforms,
   "resolution" | "size" | "center" | "pixelRatio"
@@ -138,7 +142,7 @@ export default function PendulumCanvas({
       const worldMouseX = center[0] - effSize[0] / 2 + normalizedX * effSize[0];
       const worldMouseY = center[1] - effSize[1] / 2 + normalizedY * effSize[1];
 
-      const newScale = scale * zoomFactor;
+      const newScale = clampScale(scale * zoomFactor);
       const newEffSize: [number, number] = [newScale * aspectRatio, newScale];
 
       const newWorldMouseX =
@@ -334,7 +338,7 @@ export default function PendulumCanvas({
       const worldTouchX = center[0] - effSize[0] / 2 + normalizedX * effSize[0];
       const worldTouchY = center[1] - effSize[1] / 2 + normalizedY * effSize[1];
 
-      const newScale = scale / zoomFactor;
+      const newScale = clampScale(scale / zoomFactor);
       const newEffSize: [number, number] = [newScale * aspectRatio, newScale];
 
       const newWorldTouchX =
