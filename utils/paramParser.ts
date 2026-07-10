@@ -52,14 +52,16 @@ export function parseInputUniforms(params: URLSearchParams): InputUniforms | nul
 }
 
 interface CanvasParams {
-  size: [number, number];
+  scale: number;
   center: [number, number];
   clickedAngles: [number, number] | null;
 }
 
 export function parseCanvasParams(params: URLSearchParams): CanvasParams | null {
-  const size = parseTuple(params.get("size"));
-  if (size === null) {
+  const scaleParam = parseNumber(params.get("scale"));
+  const sizeParam = parseTuple(params.get("size"));
+  const scale = scaleParam ?? (sizeParam ? sizeParam[1] : null);
+  if (scale === null) {
     return null;
   }
 
@@ -71,7 +73,7 @@ export function parseCanvasParams(params: URLSearchParams): CanvasParams | null 
   const clickedAngles = parseTuple(params.get("clickedAngles"));
 
   return {
-    size,
+    scale,
     center,
     clickedAngles,
   };

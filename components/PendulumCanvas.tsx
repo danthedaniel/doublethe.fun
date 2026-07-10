@@ -20,6 +20,15 @@ const FULL_RES_DELAY_MS = 500;
 // directly instead of being applied in a mount effect.
 const initialCanvasParams = parseCanvasParams(initialSearchParams);
 
+function getEffectiveSize(
+  scale: number,
+  resolution: [number, number],
+): [number, number] {
+  const aspectRatio =
+    resolution[1] !== 0 ? resolution[0] / resolution[1] : 1;
+  return [scale * aspectRatio, scale];
+}
+
 function setCanvasSize(
   canvas: HTMLCanvasElement,
   width: number,
@@ -88,8 +97,9 @@ export default function PendulumCanvas({
   const [fullUniforms, setFullUniforms] = useState<ShaderUniforms | null>(null);
   const [fullResProgress, setFullResProgress] = useState<number | null>(null);
   // prettier-ignore
-  const [size, setSize] = useState<[number, number]>(initialCanvasParams?.size ?? [2 * Math.PI, 2 * Math.PI]);
+  const [scale, setScale] = useState<number>(initialCanvasParams?.scale ?? 2 * Math.PI);
   const [center, setCenter] = useState<[number, number]>(initialCanvasParams?.center ?? [0, 0]);
+  const [canvasResolution, setCanvasResolution] = useState<[number, number]>([1, 1]);
 
   // Mouse state
   const [isDragging, setIsDragging] = useState(false);
@@ -115,40 +125,34 @@ export default function PendulumCanvas({
 
       const zoomFactor = e.deltaY > 0 ? 10 / 9 : 9 / 10;
 
-      // Get mouse position relative to canvas
       const rect = canvas.getBoundingClientRect();
+      const aspectRatio = rect.width / rect.height;
+      const effSize: [number, number] = [scale * aspectRatio, scale];
+
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      // Convert mouse position to normalized coordinates (0 to 1)
       const normalizedX = mouseX / rect.width;
-      const normalizedY = (rect.height - mouseY) / rect.height; // Flip Y for shader coordinates
+      const normalizedY = (rect.height - mouseY) / rect.height;
 
-      // Convert normalized coordinates to world coordinates
-      const worldMouseX = center[0] - size[0] / 2 + normalizedX * size[0];
-      const worldMouseY = center[1] - size[1] / 2 + normalizedY * size[1];
+      const worldMouseX = center[0] - effSize[0] / 2 + normalizedX * effSize[0];
+      const worldMouseY = center[1] - effSize[1] / 2 + normalizedY * effSize[1];
 
-      setSize((prevSize) => {
-        const newSize: [number, number] = [
-          prevSize[0] * zoomFactor,
-          prevSize[1] * zoomFactor,
-        ];
+      const newScale = scale * zoomFactor;
+      const newEffSize: [number, number] = [newScale * aspectRatio, newScale];
 
-        // Calculate new center to keep mouse position fixed
-        const newWorldMouseX =
-          center[0] - newSize[0] / 2 + normalizedX * newSize[0];
-        const newWorldMouseY =
-          center[1] - newSize[1] / 2 + normalizedY * newSize[1];
+      const newWorldMouseX =
+        center[0] - newEffSize[0] / 2 + normalizedX * newEffSize[0];
+      const newWorldMouseY =
+        center[1] - newEffSize[1] / 2 + normalizedY * newEffSize[1];
 
-        const centerOffsetX = worldMouseX - newWorldMouseX;
-        const centerOffsetY = worldMouseY - newWorldMouseY;
+      const centerOffsetX = worldMouseX - newWorldMouseX;
+      const centerOffsetY = worldMouseY - newWorldMouseY;
 
-        setCenter([center[0] + centerOffsetX, center[1] + centerOffsetY]);
-
-        return newSize;
-      });
+      setScale(newScale);
+      setCenter([center[0] + centerOffsetX, center[1] + centerOffsetY]);
     },
-    [center, size],
+    [center, scale],
   );
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -163,16 +167,18 @@ export default function PendulumCanvas({
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      // Shader origin is in the bottom left corner.
+      const rect = canvas.getBoundingClientRect();
+      const aspectRatio = rect.width / rect.height;
+      const effSize: [number, number] = [scale * aspectRatio, scale];
+
       const bottomLeftCorner: [number, number] = [
-        center[0] - size[0] / 2,
-        center[1] - size[1] / 2,
+        center[0] - effSize[0] / 2,
+        center[1] - effSize[1] / 2,
       ];
 
-      const rect = canvas.getBoundingClientRect();
       const radiansFromBottomLeft: [number, number] = [
-        ((clientX - rect.left) / rect.width) * size[0],
-        ((rect.bottom - clientY) / rect.height) * size[1],
+        ((clientX - rect.left) / rect.width) * effSize[0],
+        ((rect.bottom - clientY) / rect.height) * effSize[1],
       ];
 
       const angles: [number, number] = [
@@ -182,7 +188,7 @@ export default function PendulumCanvas({
       setClickedAngles(angles);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [size[0], size[1], center[0], center[1]],
+    [scale, center[0], center[1]],
   );
 
   const handleMouseClick = useCallback(
@@ -216,18 +222,20 @@ export default function PendulumCanvas({
       if (!canvas) return;
 
       const rect = canvas.getBoundingClientRect();
+      const aspectRatio = rect.width / rect.height;
+      const effSize: [number, number] = [scale * aspectRatio, scale];
+
       const deltaX = (e.clientX - lastMousePos[0]) / rect.width;
       const deltaY = (e.clientY - lastMousePos[1]) / rect.height;
 
-      // Convert screen delta to world delta
-      const worldDeltaX = -deltaX * size[0];
-      const worldDeltaY = deltaY * size[1];
+      const worldDeltaX = -deltaX * effSize[0];
+      const worldDeltaY = deltaY * effSize[1];
 
       setWasDragged(true);
       setCenter([center[0] + worldDeltaX, center[1] + worldDeltaY]);
       setLastMousePos([e.clientX, e.clientY]);
     },
-    [isDragging, lastMousePos, size, center],
+    [isDragging, lastMousePos, scale, center],
   );
   useEffect(() => {
     document.addEventListener("mousemove", handleMouseMove);
@@ -288,24 +296,24 @@ export default function PendulumCanvas({
   const handleTouchPan = useCallback(
     (canvas: HTMLCanvasElement, touch: Touch) => {
       const rect = canvas.getBoundingClientRect();
+      const aspectRatio = rect.width / rect.height;
+      const effSize: [number, number] = [scale * aspectRatio, scale];
 
       const deltaX = (touch.clientX - lastTouchPos[0]) / rect.width;
       const deltaY = (touch.clientY - lastTouchPos[1]) / rect.height;
 
-      // Convert screen delta to world delta
-      const worldDeltaX = -deltaX * size[0];
-      const worldDeltaY = deltaY * size[1];
+      const worldDeltaX = -deltaX * effSize[0];
+      const worldDeltaY = deltaY * effSize[1];
 
       setWasTouched(true);
       setCenter([center[0] + worldDeltaX, center[1] + worldDeltaY]);
       setLastTouchPos([touch.clientX, touch.clientY]);
     },
-    [size, center, lastTouchPos],
+    [scale, center, lastTouchPos],
   );
 
   const handleTouchZoom = useCallback(
     (canvas: HTMLCanvasElement, touches: TouchList) => {
-      // Two fingers - pinch zoom
       const distance = getTouchDistance(touches);
       setLastTouchDistance(distance);
       if (distance === 0) {
@@ -315,39 +323,34 @@ export default function PendulumCanvas({
       const touchCenter = getTouchCenter(touches);
       const zoomFactor = distance / lastTouchDistance;
 
-      // Get touch center relative to canvas
       const rect = canvas.getBoundingClientRect();
+      const aspectRatio = rect.width / rect.height;
+      const effSize: [number, number] = [scale * aspectRatio, scale];
+
       const normalizedX = (touchCenter[0] - rect.left) / rect.width;
       const normalizedY =
         (rect.height - (touchCenter[1] - rect.top)) / rect.height;
 
-      // Convert normalized coordinates to world coordinates
-      const worldTouchX = center[0] - size[0] / 2 + normalizedX * size[0];
-      const worldTouchY = center[1] - size[1] / 2 + normalizedY * size[1];
+      const worldTouchX = center[0] - effSize[0] / 2 + normalizedX * effSize[0];
+      const worldTouchY = center[1] - effSize[1] / 2 + normalizedY * effSize[1];
 
-      setSize((prevSize) => {
-        const newSize: [number, number] = [
-          prevSize[0] / zoomFactor,
-          prevSize[1] / zoomFactor,
-        ];
+      const newScale = scale / zoomFactor;
+      const newEffSize: [number, number] = [newScale * aspectRatio, newScale];
 
-        // Calculate new center to keep touch center fixed
-        const newWorldTouchX =
-          center[0] - newSize[0] / 2 + normalizedX * newSize[0];
-        const newWorldTouchY =
-          center[1] - newSize[1] / 2 + normalizedY * newSize[1];
+      const newWorldTouchX =
+        center[0] - newEffSize[0] / 2 + normalizedX * newEffSize[0];
+      const newWorldTouchY =
+        center[1] - newEffSize[1] / 2 + normalizedY * newEffSize[1];
 
-        const centerOffsetX = worldTouchX - newWorldTouchX;
-        const centerOffsetY = worldTouchY - newWorldTouchY;
+      const centerOffsetX = worldTouchX - newWorldTouchX;
+      const centerOffsetY = worldTouchY - newWorldTouchY;
 
-        setCenter([center[0] + centerOffsetX, center[1] + centerOffsetY]);
-
-        return newSize;
-      });
+      setScale(newScale);
+      setCenter([center[0] + centerOffsetX, center[1] + centerOffsetY]);
 
       setWasTouched(true);
     },
-    [center, size, lastTouchDistance],
+    [center, scale, lastTouchDistance],
   );
 
   // Handle touch move
@@ -431,13 +434,13 @@ export default function PendulumCanvas({
 
     setFullUniforms({
       ...uniforms,
-      size,
+      size: getEffectiveSize(scale, canvasResolution),
       center,
       pixelRatio: window.devicePixelRatio,
-      resolution: [canvas.clientWidth, canvas.clientHeight],
+      resolution: canvasResolution,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(uniforms), size, center]);
+  }, [JSON.stringify(uniforms), scale, canvasResolution[0], canvasResolution[1], center[0], center[1]]);
 
   // Update fullUniforms when the canvas's layout box changes size. Reading the
   // canvas's own client size (rather than the window's) keeps the resolution in
@@ -447,24 +450,23 @@ export default function PendulumCanvas({
     if (!canvas) return;
 
     const updateResolution = () => {
-      setFullUniforms((prev) => {
-        if (!prev) return prev;
-        if (
-          prev.resolution[0] === canvas.clientWidth &&
-          prev.resolution[1] === canvas.clientHeight
-        ) {
+      const newResolution: [number, number] = [
+        canvas.clientWidth,
+        canvas.clientHeight,
+      ];
+      setCanvasResolution((prev) => {
+        if (prev[0] === newResolution[0] && prev[1] === newResolution[1]) {
           return prev;
         }
-
-        return {
-          ...prev,
-          resolution: [canvas.clientWidth, canvas.clientHeight],
-        };
+        return newResolution;
       });
     };
 
     const observer = new ResizeObserver(updateResolution);
     observer.observe(canvas);
+
+    updateResolution();
+
     return () => observer.disconnect();
   }, []);
 
@@ -535,13 +537,13 @@ export default function PendulumCanvas({
     params.set("pendulumLengths", uniforms.pendulumLengths.join(","));
     params.set("pendulumMasses", uniforms.pendulumMasses.join(","));
     params.set("stepCount", uniforms.stepCount.toString());
-    params.set("size", size.join(","));
+    params.set("scale", scale.toString());
     params.set("center", center.join(","));
     params.set("clickedAngles", clickedAngles?.join(",") ?? "");
 
     const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
     navigator.clipboard.writeText(url);
-  }, [uniforms, size, center, clickedAngles]);
+  }, [uniforms, scale, center, clickedAngles]);
 
   return (
     <>
@@ -575,7 +577,7 @@ export default function PendulumCanvas({
       {clickedAngles && (
         <>
           <DoublePendulum
-            canvasSize={size}
+            canvasSize={getEffectiveSize(scale, canvasResolution)}
             canvasCenter={center}
             startingAngles={clickedAngles}
             lengths={uniforms.pendulumLengths}

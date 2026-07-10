@@ -338,7 +338,7 @@ export default function Controls({
         <div
           className={classNames(
             "flex flex-col duration-300 ease-in-out w-56",
-            isCollapsed ? "max-h-0" : "max-h-[800px]",
+            isCollapsed ? "max-h-0" : "max-h-200",
             "overflow-hidden"
           )}
         >
