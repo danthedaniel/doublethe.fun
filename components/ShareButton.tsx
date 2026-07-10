@@ -26,7 +26,7 @@ export default function ShareButton({ onShare }: ShareButtonProps) {
         <ShareIcon className="w-6 h-6" />
       </button>
       {showTooltip && (
-        <div onClick={() => setShowTooltip(false)} className="absolute top-0 right-14 cursor-pointer bg-white/90 hover:bg-white p-2 w-48 rounded-md shadow-lg border border-gray-200 text-center text-slate-700">
+        <div onClick={() => setShowTooltip(false)} className="absolute top-0 right-14 cursor-pointer bg-white/90 hover:bg-white p-2 w-56 rounded-md shadow-lg border border-gray-200 text-center text-slate-700">
           Link copied to clipboard
         </div>
       )}
