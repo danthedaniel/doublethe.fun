@@ -17,6 +17,7 @@ interface SimulationClockOptions {
   gravity?: number;
   lengths?: [number, number];
   masses?: [number, number];
+  maxTime?: number;
 }
 
 export interface SimulationClock {
@@ -42,6 +43,7 @@ export function useSimulationClock(
   const gravity = options.gravity ?? defaultUniforms.gravity;
   const lengths = options.lengths ?? defaultUniforms.pendulumLengths;
   const masses = options.masses ?? defaultUniforms.pendulumMasses;
+  const maxTime = options.maxTime ?? 10;
 
   // The starting configuration is captured once; later prop changes (e.g. a
   // fresh anglesList array each render) are ignored — remount to change it.
@@ -67,6 +69,7 @@ export function useSimulationClock(
   const [playing, setPlaying] = useState(false);
 
   const stepsTakenRef = useRef(0);
+  const endedRef = useRef(false);
   // Fractional-step remainder carried between frames so the displayed time
   // tracks wall time instead of drifting by the dropped remainder.
   const carryRef = useRef(0);
@@ -78,6 +81,13 @@ export function useSimulationClock(
     animationFrameRef.current = requestAnimationFrame((timestamp) =>
       animateRef.current(timestamp),
     );
+  }, []);
+
+  const stopLoop = useCallback(() => {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
   }, []);
 
   const animate = useCallback(
@@ -96,12 +106,23 @@ export function useSimulationClock(
       const wantedSteps = Math.floor(
         (deltaSeconds + carryRef.current) / config.timeStep,
       );
-      const steps = Math.min(wantedSteps, MAX_STEPS_PER_FRAME);
+      const maxSteps =
+        Math.floor(maxTime / config.timeStep) - stepsTakenRef.current;
+      const steps = Math.min(wantedSteps, MAX_STEPS_PER_FRAME, maxSteps);
       carryRef.current =
         steps === wantedSteps
           ? deltaSeconds + carryRef.current - steps * config.timeStep
           : 0;
-      if (steps === 0) return;
+      if (steps === 0) {
+        if (stepsTakenRef.current * config.timeStep >= maxTime) {
+          setTime(maxTime);
+          setStates(simulatorsRef.current.map((s) => s.getState()));
+          stopLoop();
+          endedRef.current = true;
+          setPlaying(false);
+        }
+        return;
+      }
 
       const simulators = simulatorsRef.current;
       for (const simulator of simulators) {
@@ -111,10 +132,19 @@ export function useSimulationClock(
       }
       stepsTakenRef.current += steps;
 
-      setStates(simulators.map((simulator) => simulator.getState()));
-      setTime(stepsTakenRef.current * config.timeStep);
+      const newTime = stepsTakenRef.current * config.timeStep;
+      if (newTime >= maxTime) {
+        setTime(maxTime);
+        setStates(simulators.map((simulator) => simulator.getState()));
+        stopLoop();
+        endedRef.current = true;
+        setPlaying(false);
+      } else {
+        setStates(simulators.map((simulator) => simulator.getState()));
+        setTime(newTime);
+      }
     },
-    [requestFrame],
+    [requestFrame, stopLoop, maxTime],
   );
 
   useEffect(() => {
@@ -126,20 +156,22 @@ export function useSimulationClock(
     simulatorsRef.current = buildSimulators();
   }, [buildSimulators]);
 
-  const stopLoop = useCallback(() => {
-    if (animationFrameRef.current !== null) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-  }, []);
-
   const play = useCallback(() => {
     if (animationFrameRef.current !== null) return;
+
+    if (endedRef.current) {
+      simulatorsRef.current = buildSimulators();
+      stepsTakenRef.current = 0;
+      carryRef.current = 0;
+      endedRef.current = false;
+      setStates(simulatorsRef.current.map((s) => s.getState()));
+      setTime(0);
+    }
 
     lastTimestampRef.current = null;
     requestFrame();
     setPlaying(true);
-  }, [requestFrame]);
+  }, [requestFrame, buildSimulators]);
 
   const pause = useCallback(() => {
     stopLoop();
@@ -151,6 +183,7 @@ export function useSimulationClock(
     simulatorsRef.current = buildSimulators();
     stepsTakenRef.current = 0;
     carryRef.current = 0;
+    endedRef.current = false;
     lastTimestampRef.current = null;
     setStates(simulatorsRef.current.map((simulator) => simulator.getState()));
     setTime(0);
