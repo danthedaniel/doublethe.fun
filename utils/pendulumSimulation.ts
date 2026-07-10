@@ -96,25 +96,26 @@ export class PendulumSimulator {
     const cosDiff = Math.cos(pendulums[0].angle - pendulums[1].angle);
     const sinDiff = Math.sin(pendulums[0].angle - pendulums[1].angle);
 
-    const dAngle1 =
-      ((6 / (pendulums[0].mass * pendulums[0].length * pendulums[0].length)) *
-        (2 * pendulums[0].momentum - 3 * cosDiff * pendulums[1].momentum)) /
-      (16 - 9 * cosDiff * cosDiff);
+    const m1 = pendulums[0].mass;
+    const m2 = pendulums[1].mass;
+    const l1 = pendulums[0].length;
+    const l2 = pendulums[1].length;
+    const p1 = pendulums[0].momentum;
+    const p2 = pendulums[1].momentum;
 
-    const dAngle2 =
-      ((6 / (pendulums[1].mass * pendulums[1].length * pendulums[1].length)) *
-        (8 * pendulums[1].momentum - 3 * cosDiff * pendulums[0].momentum)) /
-      (16 - 9 * cosDiff * cosDiff);
+    const alpha = (m1 / 3 + m2) * l1 * l1;
+    const beta = (m2 * l2 * l2) / 3;
+    const gamma = (m2 * l1 * l2) / 2;
+    const det = alpha * beta - gamma * gamma * cosDiff * cosDiff;
 
-    const dMomentum1 =
-      ((pendulums[0].mass * pendulums[0].length * pendulums[0].length) / -2) *
-      (+dAngle1 * dAngle2 * sinDiff +
-        ((3 * this.gravity) / pendulums[0].length) * Math.sin(pendulums[0].angle));
+    const dAngle1 = (beta * p1 - gamma * cosDiff * p2) / det;
+    const dAngle2 = (-gamma * cosDiff * p1 + alpha * p2) / det;
 
-    const dMomentum2 =
-      ((pendulums[1].mass * pendulums[1].length * pendulums[1].length) / -2) *
-      (-dAngle1 * dAngle2 * sinDiff +
-        ((3 * this.gravity) / pendulums[1].length) * Math.sin(pendulums[1].angle));
+    const grav1 = (m1 / 2 + m2) * l1 * this.gravity;
+    const grav2 = (m2 * l2 / 2) * this.gravity;
+
+    const dMomentum1 = -gamma * sinDiff * dAngle1 * dAngle2 - grav1 * Math.sin(pendulums[0].angle);
+    const dMomentum2 = gamma * sinDiff * dAngle1 * dAngle2 - grav2 * Math.sin(pendulums[1].angle);
 
     return [dAngle1, dAngle2, dMomentum1, dMomentum2];
   }

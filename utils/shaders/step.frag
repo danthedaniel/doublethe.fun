@@ -20,25 +20,19 @@ vec4 derivative(vec4 a, vec4 b) {
     float cosDiff = cos(a.z - b.z);
     float sinDiff = sin(a.z - b.z);
 
-    float dAngle1 =
-      ((6.0 / (a.y * a.x * a.x)) *
-        (2.0 * a.w - 3.0 * cosDiff * b.w)) /
-      (16.0 - 9.0 * cosDiff * cosDiff);
+    float alpha = (a.y / 3.0 + b.y) * a.x * a.x;
+    float beta = b.y * b.x * b.x / 3.0;
+    float gamma = b.y * a.x * b.x / 2.0;
+    float det = alpha * beta - gamma * gamma * cosDiff * cosDiff;
 
-    float dAngle2 =
-      ((6.0 / (b.y * b.x * b.x)) *
-        (8.0 * b.w - 3.0 * cosDiff * a.w)) /
-      (16.0 - 9.0 * cosDiff * cosDiff);
+    float dAngle1 = (beta * a.w - gamma * cosDiff * b.w) / det;
+    float dAngle2 = (-gamma * cosDiff * a.w + alpha * b.w) / det;
 
-    float dMomentum1 =
-        ((a.y * a.x * a.x) / -2.0) *
-        (+dAngle1 * dAngle2 * sinDiff +
-        ((3.0 * u_gravity) / a.x) * sin(a.z));
+    float grav1 = (a.y / 2.0 + b.y) * a.x * u_gravity;
+    float grav2 = b.y * b.x / 2.0 * u_gravity;
 
-    float dMomentum2 =
-        ((b.y * b.x * b.x) / -2.0) *
-        (-dAngle1 * dAngle2 * sinDiff +
-        ((3.0 * u_gravity) / b.x) * sin(b.z));
+    float dMomentum1 = -gamma * sinDiff * dAngle1 * dAngle2 - grav1 * sin(a.z);
+    float dMomentum2 = gamma * sinDiff * dAngle1 * dAngle2 - grav2 * sin(b.z);
 
     return vec4(dAngle1, dAngle2, dMomentum1, dMomentum2);
 }
