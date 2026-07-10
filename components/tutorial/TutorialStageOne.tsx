@@ -9,7 +9,7 @@ export default function TutorialStageOne() {
         [1, 91],
       ]}
     >
-      A double pendulum is often cited as an example of a chaotic system, meaning a
+      A double pendulum is often used as an example of a chaotic system, meaning a
       small change to the initial conditions results in a large change as the system
       progresses.
     </PendulumPairStage>

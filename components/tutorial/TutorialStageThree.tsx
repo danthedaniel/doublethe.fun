@@ -9,8 +9,8 @@ export default function TutorialStageThree() {
         [242, 290],
       ]}
     >
-      There are more interesting cases. These pendulums start off differed by a couple
-      of degrees, but maintain a similar cycle for a long time.
+      There are more interesting cases. These pendulums are off by one degree,
+      but maintain a similar cycle for a long time.
     </PendulumPairStage>
   );
 }

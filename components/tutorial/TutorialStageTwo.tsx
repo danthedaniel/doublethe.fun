@@ -10,7 +10,7 @@ export default function TutorialStageTwo() {
       ]}
     >
       But not all initial conditions lead to chaotic behavior. In the trivial case,
-      consider two sets of pendulums both pointing close to straight down.
+      consider two double pendulums both starting close to straight down.
     </PendulumPairStage>
   );
 }
