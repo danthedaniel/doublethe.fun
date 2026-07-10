@@ -6,7 +6,7 @@ export default function TutorialStageOne() {
     <PendulumPairStage
       sims={[
         [0, 90],
-        [5, 95],
+        [1, 91],
       ]}
     >
       A double pendulum is often cited as an example of a chaotic system, meaning a

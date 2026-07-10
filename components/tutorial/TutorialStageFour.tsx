@@ -9,7 +9,7 @@ const DELTA = Math.PI / 16;
 export default function TutorialStageFour() {
   return (
     <GridStage
-      baseAngles={[fromTopDegrees(278) - DELTA, fromTopDegrees(290) - DELTA]}
+      baseAngles={[fromTopDegrees(241) - DELTA, fromTopDegrees(289) - DELTA]}
       delta={DELTA}
     >
       We can run many of these simulations in a grid, where each axis corresponds to

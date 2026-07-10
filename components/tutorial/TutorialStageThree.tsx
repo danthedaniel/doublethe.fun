@@ -5,8 +5,8 @@ export default function TutorialStageThree() {
   return (
     <PendulumPairStage
       sims={[
-        [278, 290],
-        [280, 292],
+        [241, 289],
+        [242, 290],
       ]}
     >
       There are more interesting cases. These pendulums start off differed by a couple
