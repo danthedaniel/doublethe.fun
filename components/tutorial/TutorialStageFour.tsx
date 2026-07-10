@@ -14,7 +14,7 @@ export default function TutorialStageFour() {
     >
       We can run many of these simulations in a grid, where each axis corresponds to
       the angle of the red or green pendulum. Each cell background is colored by how
-      much it differs from the state of its neighbor — darker means more similar.
+      much it differs from the state of its neighbor. Darker means more similar.
     </GridStage>
   );
 }

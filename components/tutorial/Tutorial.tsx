@@ -61,20 +61,20 @@ export default function Tutorial({ onDone }: TutorialProps) {
         <Stage onDone={onDone} />
       </div>
 
-      <div className="flex items-center justify-center gap-4 py-3 sm-tall:py-6">
+      <div className="flex items-center justify-center gap-4 py-3 sm-tall:py-6 sm-tall:-mt-4 mb-2">
         <button
           type="button"
           aria-label="Previous"
           disabled={isFirst}
           onClick={() => setStageIndex((index) => index - 1)}
           className={classNames(
-            "flex h-6 w-6 items-center justify-center rounded-full border border-gray-300",
+            "flex h-9 w-9 items-center justify-center rounded-full border border-gray-300",
             isFirst
               ? "cursor-default text-gray-300"
               : "cursor-pointer text-gray-800 hover:bg-gray-100",
           )}
         >
-          <ChevronLeftIcon className="h-4 w-4" />
+          <ChevronLeftIcon className="h-6 w-6" />
         </button>
 
         <div className="flex items-center gap-3">
@@ -85,11 +85,11 @@ export default function Tutorial({ onDone }: TutorialProps) {
               aria-label={`Step ${index + 1}`}
               aria-current={index === stageIndex}
               onClick={() => setStageIndex(index)}
-              className="-m-2 cursor-pointer p-2"
+              className="-m-3 cursor-pointer p-3"
             >
               <span
                 className={classNames(
-                  "block h-6 w-6 rounded-full transition-colors",
+                  "block h-9 w-9 rounded-full transition-colors",
                   index === stageIndex
                     ? "bg-gray-900"
                     : "bg-gray-300 hover:bg-gray-400",
@@ -105,13 +105,13 @@ export default function Tutorial({ onDone }: TutorialProps) {
           disabled={isLast}
           onClick={() => setStageIndex((index) => index + 1)}
           className={classNames(
-            "flex h-6 w-6 items-center justify-center rounded-full border border-gray-300",
+            "flex h-9 w-9 items-center justify-center rounded-full border border-gray-300",
             isLast
               ? "cursor-default text-gray-300"
               : "cursor-pointer text-gray-800 hover:bg-gray-100",
           )}
         >
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRightIcon className="h-6 w-6" />
         </button>
       </div>
     </div>

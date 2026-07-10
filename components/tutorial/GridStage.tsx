@@ -30,6 +30,11 @@ const labelOutline: CSSProperties = {
   letterSpacing: "0.12em",
 };
 
+// Width reserved for the left axis labels. An equal, empty gutter on the right
+// keeps the 3x3 cell block horizontally centered rather than the labels+cells
+// block.
+const LABEL_GUTTER = "2.5rem";
+
 // Convert a simulation angle to "degrees clockwise from top", normalized to
 // [0, 360), for the axis labels.
 function topDegrees(angle: number): number {
@@ -55,7 +60,8 @@ export default function GridStage({
 
   // Rows are rendered top-down but angle2 increases upward, so display the
   // highest j first.
-  const rows = [];
+  const cellRows = [];
+  const leftLabels = [];
   for (let j = DISPLAY - 1; j >= 0; j--) {
     const cells = [];
     for (let i = 0; i < DISPLAY; i++) {
@@ -77,16 +83,16 @@ export default function GridStage({
       );
     }
 
-    rows.push(
-      <div key={j} className="contents">
-        <span
-          className="flex items-center justify-end pr-2 font-mono text-xs font-bold"
-          style={{ color: ANGLE2_COLOR, ...labelOutline }}
-        >
-          {topDegrees(baseAngles[1] + j * delta)}°
-        </span>
-        {cells}
-      </div>,
+    cellRows.push(<div key={j} className="contents">{cells}</div>);
+
+    leftLabels.push(
+      <span
+        key={j}
+        className="flex items-center justify-end pr-2 font-mono text-xs font-bold"
+        style={{ color: ANGLE2_COLOR, ...labelOutline }}
+      >
+        {topDegrees(baseAngles[1] + j * delta)}°
+      </span>,
     );
   }
 
@@ -97,19 +103,37 @@ export default function GridStage({
       </p>
 
       <div className="mx-auto w-full max-w-[min(28rem,38dvh)]">
-        <div className="grid grid-cols-[auto_repeat(3,1fr)] gap-1">
-          {rows}
-          {/* Bottom axis: angle1 (first pendulum) labels. */}
-          <span />
-          {Array.from({ length: DISPLAY }, (_, i) => baseAngles[0] + i * delta).map((angle) => (
-            <span
-              key={angle}
-              className="pt-1 text-center font-mono text-xs font-bold"
-              style={{ color: ANGLE1_COLOR, ...labelOutline }}
-            >
-              {topDegrees(angle)}°
-            </span>
-          ))}
+        <div className="flex w-full">
+          {/* Left axis: angle2 (second pendulum) labels, aligned to each row. */}
+          <div
+            className="grid shrink-0 grid-rows-3 gap-1"
+            style={{ width: LABEL_GUTTER }}
+          >
+            {leftLabels}
+          </div>
+
+          {/* The 3x3 cell grid, centered between the two equal gutters. */}
+          <div className="grid flex-1 grid-cols-3 gap-1">{cellRows}</div>
+
+          {/* Empty right gutter so the cell block centers on the container. */}
+          <div className="shrink-0" style={{ width: LABEL_GUTTER }} />
+        </div>
+
+        {/* Bottom axis: angle1 (first pendulum) labels, centered under cells. */}
+        <div className="flex w-full pt-1">
+          <div className="shrink-0" style={{ width: LABEL_GUTTER }} />
+          <div className="grid flex-1 grid-cols-3 gap-1">
+            {Array.from({ length: DISPLAY }, (_, i) => baseAngles[0] + i * delta).map((angle) => (
+              <span
+                key={angle}
+                className="text-center font-mono text-xs font-bold"
+                style={{ color: ANGLE1_COLOR, ...labelOutline }}
+              >
+                {topDegrees(angle)}°
+              </span>
+            ))}
+          </div>
+          <div className="shrink-0" style={{ width: LABEL_GUTTER }} />
         </div>
       </div>
 
