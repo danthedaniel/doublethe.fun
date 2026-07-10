@@ -1,5 +1,6 @@
 import { useState, type ComponentType } from "react";
-import { ChevronRightIcon } from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { useSwipe } from "~/hooks/useSwipe";
 import { classNames } from "~/utils/classNames";
 import TutorialStageFive from "./TutorialStageFive";
 import TutorialStageFour from "./TutorialStageFour";
@@ -31,9 +32,18 @@ export default function Tutorial({ onDone }: TutorialProps) {
   const [stageIndex, setStageIndex] = useState(0);
   const Stage = STAGES[stageIndex];
   const isLast = stageIndex === STAGES.length - 1;
+  const isFirst = stageIndex === 0;
+
+  const swipeHandlers = useSwipe({
+    onSwipeLeft: () => { if (!isLast) setStageIndex((i) => i + 1); },
+    onSwipeRight: () => { if (!isFirst) setStageIndex((i) => i - 1); },
+  });
 
   return (
-    <div className="relative flex min-h-dvh w-full flex-col bg-white text-gray-900">
+    <div
+      className="relative flex min-h-dvh w-full flex-col bg-white text-gray-900"
+      {...swipeHandlers}
+    >
       <button
         type="button"
         onClick={onDone}
@@ -52,6 +62,21 @@ export default function Tutorial({ onDone }: TutorialProps) {
       </div>
 
       <div className="flex items-center justify-center gap-4 py-3 sm-tall:py-6">
+        <button
+          type="button"
+          aria-label="Previous"
+          disabled={isFirst}
+          onClick={() => setStageIndex((index) => index - 1)}
+          className={classNames(
+            "flex h-6 w-6 items-center justify-center rounded-full border border-gray-300",
+            isFirst
+              ? "cursor-default text-gray-300"
+              : "cursor-pointer text-gray-800 hover:bg-gray-100",
+          )}
+        >
+          <ChevronLeftIcon className="h-4 w-4" />
+        </button>
+
         <div className="flex items-center gap-3">
           {STAGES.map((_, index) => (
             <button
@@ -74,16 +99,20 @@ export default function Tutorial({ onDone }: TutorialProps) {
           ))}
         </div>
 
-        {!isLast && (
-          <button
-            type="button"
-            aria-label="Next"
-            onClick={() => setStageIndex((index) => index + 1)}
-            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-300 text-gray-800 hover:bg-gray-100"
-          >
-            <ChevronRightIcon className="h-4 w-4" />
-          </button>
-        )}
+        <button
+          type="button"
+          aria-label="Next"
+          disabled={isLast}
+          onClick={() => setStageIndex((index) => index + 1)}
+          className={classNames(
+            "flex h-6 w-6 items-center justify-center rounded-full border border-gray-300",
+            isLast
+              ? "cursor-default text-gray-300"
+              : "cursor-pointer text-gray-800 hover:bg-gray-100",
+          )}
+        >
+          <ChevronRightIcon className="h-4 w-4" />
+        </button>
       </div>
     </div>
   );
