@@ -132,7 +132,7 @@ function ControlsContent({
         label="Step Count"
         value={uniforms.stepCount}
         min={50}
-        max={1000}
+        max={2048}
         step={1}
         precision={0}
         onChange={(value) => setUniforms({ ...uniforms, stepCount: value })}

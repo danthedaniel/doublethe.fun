@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Comfortable spacing only when the viewport is both wide and tall (desktop).
+   A landscape phone is wide but short, so it keeps the compact base spacing
+   instead of the desktop values it would otherwise get from `sm:`. */
+@custom-variant sm-tall (@media (min-width: 640px) and (min-height: 560px));
+
 @font-face {
   font-family: "Geist Sans";
   src: url("/fonts/geist-sans/Geist[wght].woff2") format("woff2-variations");
