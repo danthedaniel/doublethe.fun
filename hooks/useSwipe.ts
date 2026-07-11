@@ -26,14 +26,15 @@ export function useSwipe({ onSwipeLeft, onSwipeRight }: SwipeHandlers) {
       const absDx = Math.abs(dx);
       const absDy = Math.abs(dy);
 
-      if (
-        absDx < MIN_DISTANCE ||
-        absDy / absDx > MAX_VERTICAL_RATIO
-      )
+      if (absDx < MIN_DISTANCE || absDy / absDx > MAX_VERTICAL_RATIO) {
         return;
+      }
 
-      if (dx < 0) onSwipeLeft?.();
-      else onSwipeRight?.();
+      if (dx < 0) {
+        onSwipeLeft?.();
+      } else {
+        onSwipeRight?.();
+      }
     },
     [onSwipeLeft, onSwipeRight],
   );

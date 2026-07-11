@@ -15,6 +15,11 @@ import ShareButton from "./ShareButton";
 // starts.
 const FULL_RES_DELAY_MS = 500;
 
+// Delay before the low-res render kicks in during a zoom gesture. Continuous
+// wheel events each cost just one preview quad-draw; once they pause for this
+// long, a real (cheap) low-res render refines the preview.
+const LOW_RES_ZOOM_DELAY_MS = 100;
+
 // Initial view (size/center/clicked pendulum) decoded once from the URL the
 // page was opened with. Parsed at module load so it can seed component state
 // directly instead of being applied in a mount effect.
@@ -97,6 +102,10 @@ export default function PendulumCanvas({
 }: PendulumCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<PendulumRenderer | null>(null);
+
+  // Previously rendered view size, used to distinguish a zoom (size changed)
+  // from a pan or parameter change in the render effect.
+  const prevSizeRef = useRef<[number, number] | null>(null);
 
   const [fullUniforms, setFullUniforms] = useState<ShaderUniforms | null>(null);
   const [fullResProgress, setFullResProgress] = useState<number | null>(null);
@@ -503,28 +512,57 @@ export default function PendulumCanvas({
       fullUniforms.pixelRatio,
     );
 
-    // Low resolution renders every step in a single chunk so panning and
-    // zooming show the final image right away instead of an early iteration.
-    renderer.startRender(fullUniforms, {
-      scaleFactor: lowResScaleFactor,
-      stepsPerChunk: fullUniforms.stepCount,
-      progressive: false,
-    });
+    // Detect a zoom (view size changed) vs. a pan / parameter change / first
+    // render. Pans and parameter changes keep today's behavior: an immediate
+    // low-res render plus a 500ms debounced full-res render. Zooms instead
+    // reproject the last completed frame for instant feedback and debounce the
+    // low-res render by a short interval so continuous wheel events cost one
+    // quad-draw each instead of a full simulation.
+    const prevSize = prevSizeRef.current;
+    const sizeChanged =
+      prevSize !== null &&
+      (prevSize[0] !== fullUniforms.size[0] ||
+        prevSize[1] !== fullUniforms.size[1]);
+    prevSizeRef.current = [fullUniforms.size[0], fullUniforms.size[1]];
 
-    const fullResRenderTimeout = setTimeout(() => {
-      // The full resolution render keeps the low resolution image on screen
-      // until it completes; the progress bar tracks it in the meantime.
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+
+    const startLowRes = () => {
+      // Low resolution renders every step in a single chunk so panning and
+      // zooming show the final image right away instead of an early iteration.
       renderer.startRender(fullUniforms, {
-        scaleFactor: 1,
-        stepsPerChunk: FULL_RES_STEPS_PER_CHUNK,
+        scaleFactor: lowResScaleFactor,
+        stepsPerChunk: fullUniforms.stepCount,
         progressive: false,
-        onProgress: setFullResProgress,
-        onComplete: () => setFullResProgress(null),
       });
-    }, FULL_RES_DELAY_MS);
+    };
+
+    if (sizeChanged && renderer.previewView(fullUniforms)) {
+      // Preview succeeded: debounce the low-res render so a stream of wheel
+      // events only pays for preview quad-draws until the gesture pauses.
+      timeouts.push(setTimeout(startLowRes, LOW_RES_ZOOM_DELAY_MS));
+    } else {
+      // Preview unavailable (no completed tier yet) or this isn't a zoom:
+      // render low-res immediately, same as before.
+      startLowRes();
+    }
+
+    timeouts.push(
+      setTimeout(() => {
+        // The full resolution render keeps the low resolution image on screen
+        // until it completes; the progress bar tracks it in the meantime.
+        renderer.startRender(fullUniforms, {
+          scaleFactor: 1,
+          stepsPerChunk: FULL_RES_STEPS_PER_CHUNK,
+          progressive: false,
+          onProgress: setFullResProgress,
+          onComplete: () => setFullResProgress(null),
+        });
+      }, FULL_RES_DELAY_MS),
+    );
 
     return () => {
-      clearTimeout(fullResRenderTimeout);
+      for (const t of timeouts) clearTimeout(t);
       renderer.cancelRender();
       setFullResProgress(null);
     };
