@@ -31,8 +31,12 @@ interface Coordinate {
 }
 
 interface TrailPoint {
-  x: number;
-  y: number;
+  // Offset from the pivot (firstNode) in pixels. Stored relative to the pivot
+  // rather than as absolute screen coordinates so panning and zooming, which
+  // only reposition the pivot, keep the trail attached to the tip instead of
+  // dragging behind it.
+  dx: number;
+  dy: number;
   t: number;
 }
 
@@ -159,10 +163,12 @@ export default function DoublePendulum({
   };
 
   const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const tipDx = thirdNode.x - firstNode.x;
+  const tipDy = thirdNode.y - firstNode.y;
   const trail = trailRef.current;
   const lastTrailPoint = trail[trail.length - 1];
-  if (!lastTrailPoint || lastTrailPoint.x !== thirdNode.x || lastTrailPoint.y !== thirdNode.y) {
-    trail.push({ x: thirdNode.x, y: thirdNode.y, t: now });
+  if (!lastTrailPoint || lastTrailPoint.dx !== tipDx || lastTrailPoint.dy !== tipDy) {
+    trail.push({ dx: tipDx, dy: tipDy, t: now });
   }
   while (trail.length > 0 && now - trail[0].t > TRAIL_DURATION_MS) {
     trail.shift();
@@ -172,10 +178,14 @@ export default function DoublePendulum({
   for (let i = 1; i < trail.length; i++) {
     const opacity = MAX_TRAIL_OPACITY * (1 - (now - trail[i].t) / TRAIL_DURATION_MS);
     if (opacity <= 0) continue;
+    const x1 = firstNode.x + trail[i - 1].dx;
+    const y1 = firstNode.y + trail[i - 1].dy;
+    const x2 = firstNode.x + trail[i].dx;
+    const y2 = firstNode.y + trail[i].dy;
     trailSegments.push(
       <path
         key={i}
-        d={`M${trail[i - 1].x},${trail[i - 1].y}L${trail[i].x},${trail[i].y}`}
+        d={`M${x1},${y1}L${x2},${y2}`}
         style={{
           fill: "none",
           stroke: "rgb(0,220,0)",
