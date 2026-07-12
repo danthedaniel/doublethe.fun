@@ -130,14 +130,12 @@ function createProgram(
 // Deep-copy uniforms so the cache can't be mutated by the caller.
 function deepCopyUniforms(u: ShaderUniforms): ShaderUniforms {
   return {
-    resolution: [u.resolution[0], u.resolution[1]],
-    pixelRatio: u.pixelRatio,
-    size: [u.size[0], u.size[1]],
-    center: [u.center[0], u.center[1]],
-    gravity: u.gravity,
-    pendulumLengths: [u.pendulumLengths[0], u.pendulumLengths[1]],
-    pendulumMasses: [u.pendulumMasses[0], u.pendulumMasses[1]],
-    stepCount: u.stepCount,
+    ...u,
+    resolution: [...u.resolution],
+    size: [...u.size],
+    center: [...u.center],
+    pendulumLengths: [...u.pendulumLengths],
+    pendulumMasses: [...u.pendulumMasses],
   };
 }
 
@@ -148,17 +146,9 @@ function uniformsMatchExceptCenter(
   b: ShaderUniforms,
 ): boolean {
   return (
-    a.resolution[0] === b.resolution[0] &&
-    a.resolution[1] === b.resolution[1] &&
-    a.pixelRatio === b.pixelRatio &&
+    uniformsMatchExceptView(a, b) &&
     a.size[0] === b.size[0] &&
-    a.size[1] === b.size[1] &&
-    a.gravity === b.gravity &&
-    a.pendulumLengths[0] === b.pendulumLengths[0] &&
-    a.pendulumLengths[1] === b.pendulumLengths[1] &&
-    a.pendulumMasses[0] === b.pendulumMasses[0] &&
-    a.pendulumMasses[1] === b.pendulumMasses[1] &&
-    a.stepCount === b.stepCount
+    a.size[1] === b.size[1]
   );
 }
 
