@@ -128,44 +128,39 @@ export default function PendulumCanvas({
   const [lastTouchPos, setLastTouchPos] = useState<[number, number]>([0, 0]);
   const [lastTouchDistance, setLastTouchDistance] = useState<number>(0);
 
-  // Handle mouse wheel for zooming
-  const handleWheel = useCallback(
-    (e: WheelEvent) => {
-      e.preventDefault();
-
+  // Zoom by `zoomFactor`, shifting the center so the world point under
+  // (clientX, clientY) stays fixed on screen.
+  const zoomAt = useCallback(
+    (clientX: number, clientY: number, zoomFactor: number) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-
-      const zoomFactor = e.deltaY > 0 ? 10 / 9 : 9 / 10;
 
       const rect = canvas.getBoundingClientRect();
       const aspectRatio = rect.width / rect.height;
       const effSize: [number, number] = [scale * aspectRatio, scale];
 
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-
-      const normalizedX = mouseX / rect.width;
-      const normalizedY = (rect.height - mouseY) / rect.height;
-
-      const worldMouseX = center[0] - effSize[0] / 2 + normalizedX * effSize[0];
-      const worldMouseY = center[1] - effSize[1] / 2 + normalizedY * effSize[1];
+      const normalizedX = (clientX - rect.left) / rect.width;
+      const normalizedY = (rect.height - (clientY - rect.top)) / rect.height;
 
       const newScale = clampScale(scale * zoomFactor);
       const newEffSize: [number, number] = [newScale * aspectRatio, newScale];
 
-      const newWorldMouseX =
-        center[0] - newEffSize[0] / 2 + normalizedX * newEffSize[0];
-      const newWorldMouseY =
-        center[1] - newEffSize[1] / 2 + normalizedY * newEffSize[1];
-
-      const centerOffsetX = worldMouseX - newWorldMouseX;
-      const centerOffsetY = worldMouseY - newWorldMouseY;
+      const centerOffsetX = (normalizedX - 0.5) * (effSize[0] - newEffSize[0]);
+      const centerOffsetY = (normalizedY - 0.5) * (effSize[1] - newEffSize[1]);
 
       setScale(newScale);
       setCenter([center[0] + centerOffsetX, center[1] + centerOffsetY]);
     },
     [center, scale],
+  );
+
+  // Handle mouse wheel for zooming
+  const handleWheel = useCallback(
+    (e: WheelEvent) => {
+      e.preventDefault();
+      zoomAt(e.clientX, e.clientY, e.deltaY > 0 ? 10 / 9 : 9 / 10);
+    },
+    [zoomAt],
   );
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -325,7 +320,7 @@ export default function PendulumCanvas({
   );
 
   const handleTouchZoom = useCallback(
-    (canvas: HTMLCanvasElement, touches: TouchList) => {
+    (touches: TouchList) => {
       const distance = getTouchDistance(touches);
       setLastTouchDistance(distance);
       if (distance === 0) {
@@ -333,36 +328,10 @@ export default function PendulumCanvas({
       }
 
       const touchCenter = getTouchCenter(touches);
-      const zoomFactor = distance / lastTouchDistance;
-
-      const rect = canvas.getBoundingClientRect();
-      const aspectRatio = rect.width / rect.height;
-      const effSize: [number, number] = [scale * aspectRatio, scale];
-
-      const normalizedX = (touchCenter[0] - rect.left) / rect.width;
-      const normalizedY =
-        (rect.height - (touchCenter[1] - rect.top)) / rect.height;
-
-      const worldTouchX = center[0] - effSize[0] / 2 + normalizedX * effSize[0];
-      const worldTouchY = center[1] - effSize[1] / 2 + normalizedY * effSize[1];
-
-      const newScale = clampScale(scale / zoomFactor);
-      const newEffSize: [number, number] = [newScale * aspectRatio, newScale];
-
-      const newWorldTouchX =
-        center[0] - newEffSize[0] / 2 + normalizedX * newEffSize[0];
-      const newWorldTouchY =
-        center[1] - newEffSize[1] / 2 + normalizedY * newEffSize[1];
-
-      const centerOffsetX = worldTouchX - newWorldTouchX;
-      const centerOffsetY = worldTouchY - newWorldTouchY;
-
-      setScale(newScale);
-      setCenter([center[0] + centerOffsetX, center[1] + centerOffsetY]);
-
+      zoomAt(touchCenter[0], touchCenter[1], lastTouchDistance / distance);
       setWasTouched(true);
     },
-    [center, scale, lastTouchDistance],
+    [zoomAt, lastTouchDistance],
   );
 
   // Handle touch move
@@ -380,7 +349,7 @@ export default function PendulumCanvas({
           handleTouchPan(canvas, e.touches[0]);
           break;
         case 2:
-          handleTouchZoom(canvas, e.touches);
+          handleTouchZoom(e.touches);
           break;
       }
     },
