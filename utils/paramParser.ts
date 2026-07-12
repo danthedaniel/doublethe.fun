@@ -14,8 +14,9 @@ function parseTuple(value: string | null): [number, number] | null {
     return null;
   }
 
+  // `b` is undefined (not null) when the string has no comma.
   const [a, b] = value.split(",").map(parseNumber);
-  if (a === null || b === null) {
+  if (a == null || b == null) {
     return null;
   }
 
