@@ -218,9 +218,7 @@ export default function PendulumAudio({
       .catch(console.error);
 
     return () => {
-      if (gainRef.current) {
-        gainRef.current = null;
-      }
+      gainRef.current = null;
 
       if (audioContextRef.current) {
         audioContextRef.current.close().catch(console.error);
