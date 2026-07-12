@@ -43,7 +43,7 @@ export default function MiniPendulum({ pendulums }: MiniPendulumProps) {
   const secondY =
     firstY + pendulums[1].length * Math.sin(pendulums[1].angle + Math.PI / 2) * LENGTH_SCALE;
 
-  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const now = performance.now();
   const trail = trailRef.current;
   const last = trail[trail.length - 1];
   if (!last || last.x !== secondX || last.y !== secondY) {

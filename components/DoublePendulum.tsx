@@ -19,8 +19,8 @@ const nodeStrokeWidth = 0.002;
 const lineWidth = 0.012;
 const lengthScale = 0.05;
 
-// Trailing path traced by the tip. It spans the last few seconds and fades out
-// with age, capped below full opacity so it always reads as translucent.
+// Trailing path traced by the tip. It spans the last TRAIL_DURATION_MS and is
+// drawn below full opacity so it always reads as translucent.
 const TRAIL_DURATION_MS = 30000;
 const MAX_TRAIL_OPACITY = 0.8;
 const trailWidth = 0.006;
@@ -52,48 +52,36 @@ export default function DoublePendulum({
   const windowSize = useWindowSize();
   const scale = Math.min(windowSize.width, windowSize.height);
 
-  const animationFuncRef = useRef<((timestamp: number) => void) | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
   const simulatorRef = useRef<PendulumSimulator | null>(null);
   const trailRef = useRef<TrailPoint[]>([]);
   const [pendulums, setPendulums] = useState<PendulumPair | null>(null);
 
-  const animate = useCallback(
-    (timestamp: number) => {
-      if (!simulatorRef.current) {
-        throw new Error("Simulator not initialized");
-      }
+  const animate = useCallback((timestamp: number) => {
+    if (!simulatorRef.current) {
+      throw new Error("Simulator not initialized");
+    }
 
-      if (lastTimestampRef.current === null) {
-        lastTimestampRef.current = timestamp;
-        animationFrameRef.current = requestAnimationFrame((timestamp) =>
-          animationFuncRef?.current?.(timestamp)
-        );
-        return;
-      }
+    animationFrameRef.current = requestAnimationFrame(animate);
 
-      const deltaSeconds = (timestamp - lastTimestampRef.current) / 1000;
-      const steps = Math.floor(deltaSeconds / timeStep);
-
-      for (let i = 0; i < steps; i++) {
-        simulatorRef.current.step();
-      }
-
+    if (lastTimestampRef.current === null) {
       lastTimestampRef.current = timestamp;
-      animationFrameRef.current = requestAnimationFrame((timestamp) =>
-        animationFuncRef?.current?.(timestamp)
-      );
+      return;
+    }
 
-      // Trigger a re-render
-      setPendulums(simulatorRef.current.getState());
-    },
-    []
-  );
+    const deltaSeconds = (timestamp - lastTimestampRef.current) / 1000;
+    const steps = Math.floor(deltaSeconds / timeStep);
 
-  useEffect(() => {
-    animationFuncRef.current = animate;
-  }, [animate]);
+    for (let i = 0; i < steps; i++) {
+      simulatorRef.current.step();
+    }
+
+    lastTimestampRef.current = timestamp;
+
+    // Trigger a re-render
+    setPendulums(simulatorRef.current.getState());
+  }, []);
 
   // Start animation on property changes
   useEffect(() => {
@@ -104,9 +92,7 @@ export default function DoublePendulum({
     );
     trailRef.current = [];
 
-    animationFrameRef.current = requestAnimationFrame((timestamp) =>
-      animationFuncRef?.current?.(timestamp)
-    );
+    animationFrameRef.current = requestAnimationFrame(animate);
 
     return () => {
       if (animationFrameRef.current) {
@@ -116,6 +102,7 @@ export default function DoublePendulum({
       lastTimestampRef.current = null;
     };
   }, [
+    animate,
     gravity,
     startingAngles[0],
     startingAngles[1],
@@ -162,7 +149,7 @@ export default function DoublePendulum({
     y: secondNode.y + pendulums[1].length * Math.sin(pendulums[1].angle + Math.PI / 2) * lengthScale * scale,
   };
 
-  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const now = performance.now();
   const tipDx = thirdNode.x - firstNode.x;
   const tipDy = thirdNode.y - firstNode.y;
   const trail = trailRef.current;
