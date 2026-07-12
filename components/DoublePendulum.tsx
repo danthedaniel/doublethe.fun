@@ -21,7 +21,7 @@ const lengthScale = 0.05;
 
 // Trailing path traced by the tip. It spans the last few seconds and fades out
 // with age, capped below full opacity so it always reads as translucent.
-const TRAIL_DURATION_MS = 3000;
+const TRAIL_DURATION_MS = 30000;
 const MAX_TRAIL_OPACITY = 0.8;
 const trailWidth = 0.006;
 
@@ -174,27 +174,9 @@ export default function DoublePendulum({
     trail.shift();
   }
 
-  const trailSegments = [];
-  for (let i = 1; i < trail.length; i++) {
-    const opacity = MAX_TRAIL_OPACITY * (1 - (now - trail[i].t) / TRAIL_DURATION_MS);
-    if (opacity <= 0) continue;
-    const x1 = firstNode.x + trail[i - 1].dx;
-    const y1 = firstNode.y + trail[i - 1].dy;
-    const x2 = firstNode.x + trail[i].dx;
-    const y2 = firstNode.y + trail[i].dy;
-    trailSegments.push(
-      <path
-        key={i}
-        d={`M${x1},${y1}L${x2},${y2}`}
-        style={{
-          fill: "none",
-          stroke: "rgb(0,220,0)",
-          strokeOpacity: opacity,
-          strokeWidth: `${trailWidth * scale}px`,
-        }}
-      />
-    );
-  }
+  const trailD = trail
+    .map((p, i) => `${i === 0 ? "M" : "L"}${firstNode.x + p.dx},${firstNode.y + p.dy}`)
+    .join("");
 
   return (
     <svg
@@ -217,7 +199,17 @@ export default function DoublePendulum({
     >
       <title>Double pendulum</title>
 
-      {trailSegments}
+      {trailD && (
+        <path
+          d={trailD}
+          style={{
+            fill: "none",
+            stroke: "rgb(0,220,0)",
+            strokeOpacity: MAX_TRAIL_OPACITY,
+            strokeWidth: `${trailWidth * scale}px`,
+          }}
+        />
+      )}
 
       <path
         d={`M${firstNode.x},${firstNode.y}L${secondNode.x},${secondNode.y}`}
