@@ -113,16 +113,6 @@ export function useSimulationClock(
         steps === wantedSteps
           ? deltaSeconds + carryRef.current - steps * config.timeStep
           : 0;
-      if (steps === 0) {
-        if (stepsTakenRef.current * config.timeStep >= maxTime) {
-          setTime(maxTime);
-          setStates(simulatorsRef.current.map((s) => s.getState()));
-          stopLoop();
-          endedRef.current = true;
-          setPlaying(false);
-        }
-        return;
-      }
 
       const simulators = simulatorsRef.current;
       for (const simulator of simulators) {
@@ -133,15 +123,17 @@ export function useSimulationClock(
       stepsTakenRef.current += steps;
 
       const newTime = stepsTakenRef.current * config.timeStep;
-      if (newTime >= maxTime) {
-        setTime(maxTime);
-        setStates(simulators.map((simulator) => simulator.getState()));
+      const ended = newTime >= maxTime;
+      if (steps === 0 && !ended) {
+        return;
+      }
+
+      setStates(simulators.map((simulator) => simulator.getState()));
+      setTime(ended ? maxTime : newTime);
+      if (ended) {
         stopLoop();
         endedRef.current = true;
         setPlaying(false);
-      } else {
-        setStates(simulators.map((simulator) => simulator.getState()));
-        setTime(newTime);
       }
     },
     [requestFrame, stopLoop, maxTime],
@@ -156,22 +148,28 @@ export function useSimulationClock(
     simulatorsRef.current = buildSimulators();
   }, [buildSimulators]);
 
+  // Rebuild the simulators at the initial conditions and rewind to t = 0.
+  const rewind = useCallback(() => {
+    simulatorsRef.current = buildSimulators();
+    stepsTakenRef.current = 0;
+    carryRef.current = 0;
+    endedRef.current = false;
+    lastTimestampRef.current = null;
+    setStates(simulatorsRef.current.map((simulator) => simulator.getState()));
+    setTime(0);
+  }, [buildSimulators]);
+
   const play = useCallback(() => {
     if (animationFrameRef.current !== null) return;
 
     if (endedRef.current) {
-      simulatorsRef.current = buildSimulators();
-      stepsTakenRef.current = 0;
-      carryRef.current = 0;
-      endedRef.current = false;
-      setStates(simulatorsRef.current.map((s) => s.getState()));
-      setTime(0);
+      rewind();
     }
 
     lastTimestampRef.current = null;
     requestFrame();
     setPlaying(true);
-  }, [requestFrame, buildSimulators]);
+  }, [requestFrame, rewind]);
 
   const pause = useCallback(() => {
     stopLoop();
@@ -180,15 +178,9 @@ export function useSimulationClock(
 
   const reset = useCallback(() => {
     stopLoop();
-    simulatorsRef.current = buildSimulators();
-    stepsTakenRef.current = 0;
-    carryRef.current = 0;
-    endedRef.current = false;
-    lastTimestampRef.current = null;
-    setStates(simulatorsRef.current.map((simulator) => simulator.getState()));
-    setTime(0);
+    rewind();
     setPlaying(false);
-  }, [stopLoop, buildSimulators]);
+  }, [stopLoop, rewind]);
 
   useEffect(() => stopLoop, [stopLoop]);
 
