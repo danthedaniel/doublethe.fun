@@ -28,6 +28,9 @@ export function createPendulums(
   ];
 }
 
+// [angle1, angle2, momentum1, momentum2]
+type StateVector = [number, number, number, number];
+
 export class PendulumSimulator {
   constructor(
     private timeStep: number,
@@ -36,72 +39,49 @@ export class PendulumSimulator {
   ) {}
 
   getState(): PendulumPair {
-    return JSON.parse(JSON.stringify(this.pendulums));
+    return [{ ...this.pendulums[0] }, { ...this.pendulums[1] }];
   }
 
+  // Classic RK4 integration of the state vector.
   step() {
-    const [k1da1, k1da2, k1dp1, k1dp2] = this.derivative(this.pendulums);
-
-    const k2a1 = this.pendulums[0].angle + (k1da1 * this.timeStep) / 2;
-    const k2a2 = this.pendulums[1].angle + (k1da2 * this.timeStep) / 2;
-    const k2p1 = this.pendulums[0].momentum + (k1dp1 * this.timeStep) / 2;
-    const k2p2 = this.pendulums[1].momentum + (k1dp2 * this.timeStep) / 2;
-
-    const k2pendulums: PendulumPair = [
-      { ...this.pendulums[0], angle: k2a1, momentum: k2p1 },
-      { ...this.pendulums[1], angle: k2a2, momentum: k2p2 },
+    const y: StateVector = [
+      this.pendulums[0].angle,
+      this.pendulums[1].angle,
+      this.pendulums[0].momentum,
+      this.pendulums[1].momentum,
     ];
-    const [k2da1, k2da2, k2dp1, k2dp2] = this.derivative(k2pendulums);
-
-    const k3a1 = this.pendulums[0].angle + (k2da1 * this.timeStep) / 2;
-    const k3a2 = this.pendulums[1].angle + (k2da2 * this.timeStep) / 2;
-    const k3p1 = this.pendulums[0].momentum + (k2dp1 * this.timeStep) / 2;
-    const k3p2 = this.pendulums[1].momentum + (k2dp2 * this.timeStep) / 2;
-
-    const k3pendulums: PendulumPair = [
-      { ...this.pendulums[0], angle: k3a1, momentum: k3p1 },
-      { ...this.pendulums[1], angle: k3a2, momentum: k3p2 },
+    const at = (k: StateVector, scale: number): StateVector => [
+      y[0] + k[0] * scale,
+      y[1] + k[1] * scale,
+      y[2] + k[2] * scale,
+      y[3] + k[3] * scale,
     ];
-    const [k3da1, k3da2, k3dp1, k3dp2] = this.derivative(k3pendulums);
 
-    const k4a1 = this.pendulums[0].angle + k3da1 * this.timeStep;
-    const k4a2 = this.pendulums[1].angle + k3da2 * this.timeStep;
-    const k4p1 = this.pendulums[0].momentum + k3dp1 * this.timeStep;
-    const k4p2 = this.pendulums[1].momentum + k3dp2 * this.timeStep;
+    const k1 = this.derivative(y);
+    const k2 = this.derivative(at(k1, this.timeStep / 2));
+    const k3 = this.derivative(at(k2, this.timeStep / 2));
+    const k4 = this.derivative(at(k3, this.timeStep));
 
-    const k4pendulums: PendulumPair = [
-      { ...this.pendulums[0], angle: k4a1, momentum: k4p1 },
-      { ...this.pendulums[1], angle: k4a2, momentum: k4p2 },
-    ];
-    const [k4da1, k4da2, k4dp1, k4dp2] = this.derivative(k4pendulums);
-
-    this.pendulums[0].angle =
-      this.pendulums[0].angle +
-      ((k1da1 + 2 * k2da1 + 2 * k3da1 + k4da1) * this.timeStep) / 6;
-    this.pendulums[0].momentum =
-      this.pendulums[0].momentum +
-      ((k1dp1 + 2 * k2dp1 + 2 * k3dp1 + k4dp1) * this.timeStep) / 6;
-
-    this.pendulums[1].angle =
-      this.pendulums[1].angle +
-      ((k1da2 + 2 * k2da2 + 2 * k3da2 + k4da2) * this.timeStep) / 6;
-    this.pendulums[1].momentum =
-      this.pendulums[1].momentum +
-      ((k1dp2 + 2 * k2dp2 + 2 * k3dp2 + k4dp2) * this.timeStep) / 6;
+    this.pendulums[0].angle +=
+      ((k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]) * this.timeStep) / 6;
+    this.pendulums[1].angle +=
+      ((k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]) * this.timeStep) / 6;
+    this.pendulums[0].momentum +=
+      ((k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]) * this.timeStep) / 6;
+    this.pendulums[1].momentum +=
+      ((k1[3] + 2 * k2[3] + 2 * k3[3] + k4[3]) * this.timeStep) / 6;
 
     return this.getState();
   }
 
-  private derivative(pendulums: PendulumPair) {
-    const cosDiff = Math.cos(pendulums[0].angle - pendulums[1].angle);
-    const sinDiff = Math.sin(pendulums[0].angle - pendulums[1].angle);
+  private derivative([a1, a2, p1, p2]: StateVector): StateVector {
+    const cosDiff = Math.cos(a1 - a2);
+    const sinDiff = Math.sin(a1 - a2);
 
-    const m1 = pendulums[0].mass;
-    const m2 = pendulums[1].mass;
-    const l1 = pendulums[0].length;
-    const l2 = pendulums[1].length;
-    const p1 = pendulums[0].momentum;
-    const p2 = pendulums[1].momentum;
+    const m1 = this.pendulums[0].mass;
+    const m2 = this.pendulums[1].mass;
+    const l1 = this.pendulums[0].length;
+    const l2 = this.pendulums[1].length;
 
     const alpha = (m1 / 3 + m2) * l1 * l1;
     const beta = (m2 * l2 * l2) / 3;
@@ -114,8 +94,8 @@ export class PendulumSimulator {
     const grav1 = (m1 / 2 + m2) * l1 * this.gravity;
     const grav2 = (m2 * l2 / 2) * this.gravity;
 
-    const dMomentum1 = -gamma * sinDiff * dAngle1 * dAngle2 - grav1 * Math.sin(pendulums[0].angle);
-    const dMomentum2 = gamma * sinDiff * dAngle1 * dAngle2 - grav2 * Math.sin(pendulums[1].angle);
+    const dMomentum1 = -gamma * sinDiff * dAngle1 * dAngle2 - grav1 * Math.sin(a1);
+    const dMomentum2 = gamma * sinDiff * dAngle1 * dAngle2 - grav2 * Math.sin(a2);
 
     return [dAngle1, dAngle2, dMomentum1, dMomentum2];
   }
