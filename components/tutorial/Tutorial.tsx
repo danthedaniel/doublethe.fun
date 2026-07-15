@@ -1,5 +1,5 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import { type ComponentType, useState } from "react";
+import { type ComponentType, useEffect, useState } from "react";
 import { useSwipe } from "~/hooks/useSwipe";
 import { classNames } from "~/utils/classNames";
 import TutorialStageFive from "./TutorialStageFive";
@@ -38,6 +38,20 @@ export default function Tutorial({ onDone }: TutorialProps) {
     onSwipeLeft: () => { if (!isLast) setStageIndex((i) => i + 1); },
     onSwipeRight: () => { if (!isFirst) setStageIndex((i) => i - 1); },
   });
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft" && !isFirst) {
+        event.preventDefault();
+        setStageIndex((i) => i - 1);
+      } else if (event.key === "ArrowRight" && !isLast) {
+        event.preventDefault();
+        setStageIndex((i) => i + 1);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFirst, isLast]);
 
   return (
     <div
